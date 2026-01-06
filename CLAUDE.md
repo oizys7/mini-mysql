@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
+你的所有实现可以简单、简化、但是都必须保持和 MySQL 一样的原理。
+
 **Mini MySQL** - 一个简化版的 MySQL 数据库实现，用于学习数据库内部原理。实现时应该加上必要的注释来理解 MySQL 的原理。
 
 ### 核心原则
@@ -124,20 +126,20 @@ src/main/java/com/minimysql/
 1. **Storage 层**
    - [x] Page：固定16KB内存块，支持读写
    - [x] BufferPool：LRU缓存，支持页换入换出
-   - [ ] DataPage：在页中存储行数据（简单槽位结构）
-   - [ ] PageManager：管理页的分配和释放
+   - [x] DataPage：在页中存储行数据（简单槽位结构）
+   - [x] PageManager：管理页的分配和释放
 
 2. **Table 层**
-   - [ ] Column：列定义（类型、长度、是否可空）
-   - [ ] Row：行数据（字节数组+偏移量）
-   - [ ] Table：表定义（列集合+主键）
+   - [x] Column：列定义（类型、长度、是否可空）
+   - [x] Row：行数据（字节数组+偏移量）
+   - [x] Table：表定义（列集合+主键）
 
 3. **Index 层**
-   - [ ] BPlusTree：基本的B+树实现
-   - [ ] 在表中添加主键索引
+   - [x] BPlusTree：基本的B+树实现
+   - [x] 在表中添加主键索引
 
 4. **Parser 层**
-   - [ ] ANTLR语法：支持最基本的 SELECT、INSERT、CREATE TABLE
+   - [ ] ANTLR语法：支持最基本的 SELECT、INSERT、UPDATE、DELETE、CREATE TABLE、DROP TABLE
    - [ ] AST到Statement的转换
 
 5. **Executor 层**
@@ -168,24 +170,27 @@ src/main/java/com/minimysql/
 - [x] 项目结构和构建系统
 - [x] Page 接口和 DataPage 实现
 - [x] BufferPool（LRU淘汰算法）
-- [ ] PageManager（页分配器）
-- [ ] Row 和 Column 数据结构
-- [ ] Table 表定义
+- [x] PageManager（页分配器）
+- [x] Row 和 Column 数据结构
+- [x] Table 表定义
 - [ ] 简单的文件存储（每页一个文件或单一数据文件）
 
 ### 阶段2：基础索引（必须实现）
 
-- [ ] B+树节点结构
-- [ ] B+树插入、查找、删除
-- [ ] 主键索引
-- [ ] 在 Table 中集成索引
+- [x] B+树节点结构
+- [x] B+树插入、查找、删除
+- [x] 主键索引
+- [x] 在 Table 中集成索引
 
 ### 阶段3：SQL解析（必须实现）
 
 - [ ] ANTLR 语法规则（简化版）
 - [ ] SELECT 语句解析（支持 WHERE）
 - [ ] INSERT 语句解析
+- [ ] UPDATE 语句解析
+- [ ] DELETE 语句解析
 - [ ] CREATE TABLE 语句解析
+- [ ] DROP TABLE 语句解析
 - [ ] AST 节点定义
 
 ### 阶段4：执行引擎（必须实现）
@@ -225,8 +230,6 @@ src/main/java/com/minimysql/
 - [ ] SortOperator（ORDER BY）
 - [ ] AggregationOperator（GROUP BY）
 - [ ] 子查询支持
-- [ ] 视图
-- [ ] 存储过程
 
 ### 阶段9：性能优化（可选）
 

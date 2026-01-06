@@ -2,7 +2,7 @@ package com.minimysql.storage.index;
 
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.buffer.PageFrame;
-import com.minimysql.storage.page.DataPage;
+import com.minimysql.storage.page.IndexPage;
 import com.minimysql.storage.page.PageManager;
 
 import java.util.ArrayList;
@@ -349,17 +349,21 @@ public class BPlusTree {
         frame.pin();
 
         try {
-            DataPage page = (DataPage) frame.getPage();
-            byte[] pageData = page.getData();
+            IndexPage indexPage = (IndexPage) frame.getPage();
 
             // 检查页是否已初始化(通过Magic Number判断)
-            if (pageData.length < 4) {
+            byte[] pageData = indexPage.getData();
+
+            // IndexPage布局: [PageType(1) | PageId(4) | Reserved(7) | NodeData(...)]
+            // BPlusTreeNode的Magic Number在NodeData开始处(偏移量12)
+            if (pageData.length < IndexPage.HEADER_SIZE + 4) {
                 // 页未初始化,返回空节点
                 return new BPlusTreeNode(true);
             }
 
-            // 读取Magic Number判断是否为B+树节点
+            // 读取Magic Number判断是否为B+树节点(跳过IndexPage页头)
             java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(pageData);
+            buffer.position(IndexPage.HEADER_SIZE); // 跳过页头
             int magic = buffer.getInt();
 
             if (magic != BPlusTreeNode.MAGIC) {
@@ -367,8 +371,8 @@ public class BPlusTree {
                 return new BPlusTreeNode(true);
             }
 
-            // 从字节数组反序列化节点
-            BPlusTreeNode node = BPlusTreeNode.fromBytes(pageData);
+            // 从IndexPage获取节点(IndexPage会反序列化)
+            BPlusTreeNode node = indexPage.getNode();
             node.setPageId(pageId);
 
             return node;
@@ -398,21 +402,18 @@ public class BPlusTree {
         frame.pin();
 
         try {
-            // 序列化节点到字节数组
-            byte[] nodeData = node.toBytes();
+            // 获取或创建IndexPage
+            IndexPage indexPage;
+            try {
+                indexPage = (IndexPage) frame.getPage();
+            } catch (ClassCastException e) {
+                // 页存在但不是IndexPage,创建新的
+                indexPage = new IndexPage(node);
+                frame.setPage(indexPage);
+            }
 
-            // 获取DataPage并直接写入数据
-            DataPage page = (DataPage) frame.getPage();
-
-            // ⚠️ 简化实现:直接替换页的底层字节数组
-            // 生产环境:应该使用DataPage的insertRow方法存储节点
-            byte[] pageData = page.getData();
-
-            // 清零页数据(避免旧数据干扰)
-            java.util.Arrays.fill(pageData, (byte) 0);
-
-            // 复制节点数据到页
-            System.arraycopy(nodeData, 0, pageData, 0, nodeData.length);
+            // 设置节点数据(IndexPage会序列化)
+            indexPage.setNode(node);
 
             // 标记为脏页
             frame.markDirty();
