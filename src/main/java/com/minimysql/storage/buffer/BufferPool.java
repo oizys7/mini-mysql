@@ -14,6 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * BufferPool - 缓冲池管理器
+ * todo 优化阶段，尝试优化锁的粒度/是否可以不使用锁
  *
  * 缓冲池是数据库性能的核心,用于缓存磁盘上的页,减少磁盘I/O。
  *
@@ -343,6 +344,7 @@ public class BufferPool {
 
     /**
      * 淘汰一个页
+     * todo 优化阶段，尝试优化算法
      *
      * 从缓存中找到最久未使用且未被pin的页进行淘汰。
      * 如果所有页都被pin,抛出异常(不应该发生,但防御性编程)。
@@ -369,21 +371,6 @@ public class BufferPool {
 
         // 如果所有页都被pin,抛出异常
         throw new IllegalStateException("Cannot evict page: all pages are pinned");
-    }
-
-    /**
-     * 淘汰指定的页(废弃方法,保留用于兼容)
-     *
-     * @param frame 要淘汰的页帧
-     * @deprecated 使用evictOnePage()代替
-     */
-    @Deprecated
-    private void evictPage(PageFrame frame) {
-        if (frame.isDirty()) {
-            Page page = frame.getPage();
-            int tableId = page.getPageId() / 1_000_000;
-            writePageToDisk(tableId, frame);
-        }
     }
 
     /**
