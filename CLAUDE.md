@@ -122,8 +122,8 @@ src/main/java/com/minimysql/
 从底向上实现，每层可独立测试：
 
 1. **Storage 层**
-   - [ ] Page：固定16KB内存块，支持读写
-   - [ ] BufferPool：LRU缓存，支持页换入换出
+   - [x] Page：固定16KB内存块，支持读写
+   - [x] BufferPool：LRU缓存，支持页换入换出
    - [ ] DataPage：在页中存储行数据（简单槽位结构）
    - [ ] PageManager：管理页的分配和释放
 
@@ -166,8 +166,8 @@ src/main/java/com/minimysql/
 ### 阶段1：核心存储（必须实现）
 
 - [x] 项目结构和构建系统
-- [ ] Page 接口和 DataPage 实现
-- [ ] BufferPool（LRU淘汰算法）
+- [x] Page 接口和 DataPage 实现
+- [x] BufferPool（LRU淘汰算法）
 - [ ] PageManager（页分配器）
 - [ ] Row 和 Column 数据结构
 - [ ] Table 表定义
