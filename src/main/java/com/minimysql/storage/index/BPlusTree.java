@@ -351,6 +351,55 @@ public abstract class BPlusTree implements Index {
     }
 
     /**
+     * 获取所有记录
+     *
+     * 遍历所有叶子节点，返回所有值。
+     * 用于全表扫描操作。
+     *
+     * @return 所有值的列表
+     */
+    public List<Object> getAll() {
+        List<Object> results = new ArrayList<>();
+
+        // 1. 找到最左边的叶子节点（最小的键）
+        BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
+        BPlusTreeNode leaf = findLeftmostLeaf(root);
+
+        // 2. 遍历所有叶子节点
+        while (leaf != null) {
+            // 收集当前叶子节点的所有值
+            for (int i = 0; i < leaf.getKeyCount(); i++) {
+                results.add(leaf.getValue(i));
+            }
+
+            // 移动到下一个叶子节点
+            int nextLeafPageId = leaf.getNextLeafPageId();
+            if (nextLeafPageId == -1) {
+                break; // 已到最后一个叶子节点
+            }
+
+            leaf = loadNode(nextLeafPageId);
+        }
+
+        return results;
+    }
+
+    /**
+     * 找到最左边的叶子节点
+     *
+     * @param node 当前节点
+     * @return 最左边的叶子节点
+     */
+    protected BPlusTreeNode findLeftmostLeaf(BPlusTreeNode node) {
+        while (!node.isLeaf()) {
+            // 总是走最左边的路径
+            int leftmostChildPageId = node.getChild(0);
+            node = loadNode(leftmostChildPageId);
+        }
+        return node;
+    }
+
+    /**
      * 范围查询
      *
      * 利用叶子节点链表,支持范围查询。

@@ -471,7 +471,11 @@ public class Table {
      * 遍历聚簇索引的所有叶子节点，返回所有行数据。
      * 时间复杂度 O(N)，性能较差，应尽量避免使用。
      *
-     * 简化实现：通过主键范围查询实现（假设主键从最小值到最大值）
+     * 实现: 通过聚簇索引的getAll()方法遍历所有叶子节点
+     *
+     * MySQL InnoDB对应:
+     * - 全表扫描 → 扫描聚簇索引的所有叶子节点
+     * - 顺序I/O → 叶子节点通过链表连接，顺序读取效率高
      *
      * @return 所有行数据
      */
@@ -480,10 +484,26 @@ public class Table {
             throw new IllegalStateException("Clustered index not set");
         }
 
-        // 简化实现：返回空列表
-        // 生产环境应该遍历所有DataPage或聚簇索引的所有叶子节点
-        // TODO: 实现真正的全表扫描
-        return new ArrayList<>();
+        // 从聚簇索引获取所有行数据
+        // 注意: ClusteredIndex存储的是Row.toBytes()的字节数组，需要反序列化
+        List<Object> rowObjects = clusteredIndex.getAll();
+
+        // 转换为Row列表
+        List<Row> rows = new ArrayList<>();
+        for (Object obj : rowObjects) {
+            if (obj instanceof byte[]) {
+                // 从字节数组反序列化Row
+                Row row = Row.fromBytes(columns, (byte[]) obj);
+                if (row != null) {
+                    rows.add(row);
+                }
+            } else if (obj instanceof Row) {
+                // 直接是Row对象（某些测试场景）
+                rows.add((Row) obj);
+            }
+        }
+
+        return rows;
     }
 
     /**

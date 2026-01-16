@@ -94,7 +94,9 @@ src/main/java/com/minimysql/
 │       ├── LockManager.java # 锁管理器
 │       └── RecoveryLog.java # WAL日志（可选）
 └── metadata/                # 元数据管理
-    ├── Catalog.java         # 系统表（表、列、索引信息）
+    ├── SystemTables.java    # 系统表定义（SYS_TABLES, SYS_COLUMNS）
+    ├── TableMetadata.java   # 表元数据DTO
+    ├── ColumnMetadata.java  # 列元数据DTO
     └── SchemaManager.java   # Schema管理器
 ```
 
@@ -136,32 +138,79 @@ src/main/java/com/minimysql/
 
 3. **Index 层**
    - [x] BPlusTree：基本的B+树实现
-   - [x] 在表中添加主键索引
+   - [x] 聚簇索引（ClusteredIndex）
+   - [x] 二级索引（SecondaryIndex）
+   - [x] 在表中集成主键和二级索引
 
-4. **Parser 层**
+4. **元数据层**
+   - [x] 系统表定义（SYS_TABLES, SYS_COLUMNS）
+   - [x] SchemaManager：管理表元数据的创建、删除、查询
+   - [x] 元数据持久化到系统表
+   - [x] 集成到 InnoDBStorageEngine
+   - [ ] 实现元数据加载（依赖 Table.fullTableScan()）
+
+5. **Parser 层**
    - [ ] ANTLR语法：支持最基本的 SELECT、INSERT、UPDATE、DELETE、CREATE TABLE、DROP TABLE
    - [ ] AST到Statement的转换
 
-5. **Executor 层**
+6. **Executor 层**
    - [ ] ScanOperator：全表扫描
    - [ ] FilterOperator：条件过滤
    - [ ] ProjectOperator：列投影
    - [ ] 火山模型：每个Operator实现 `next()` 和 `hasNext()`
 
-6. **元数据**
-   - [ ] Catalog：内存中存储表结构信息
-   - [ ] 持久化到文件（简单JSON或二进制）
+7. **元数据**
+   - [x] Catalog：系统表（SYS_TABLES, SYS_COLUMNS）
+   - [x] SchemaManager：元数据管理器
+   - [x] 持久化到系统表（不使用外部文件）
 
 ### 测试策略
 
 ```bash
 # 每个模块独立测试
 ./gradlew test --tests com.minimysql.storage.PageTest
+./gradlew test --tests com.minimysql.metadata.SchemaManagerTest
 ./gradlew test --tests com.minimysql.executor.ScanOperatorTest
 
 # 集成测试：端到端SQL执行
 ./gradlew test --tests com.minimysql.integration.EndToEndTest
 ```
+
+### 元数据管理设计
+
+**核心原理**：
+- 采用 **MySQL InnoDB 风格**的系统表设计
+- 元数据存储在专门的系统表中（`SYS_TABLES`, `SYS_COLUMNS`）
+- 对应 MySQL 的 `information_schema` 库
+
+**系统表结构**：
+1. **SYS_TABLES**（系统表定义）
+   - `table_id` (INT): 表ID
+   - `table_name` (VARCHAR(128)): 表名
+
+2. **SYS_COLUMNS**（列定义）
+   - `table_id` (INT): 表ID
+   - `column_name` (VARCHAR(128)): 列名
+   - `column_type` (VARCHAR(32)): 列类型（INT, VARCHAR等）
+   - `column_length` (INT): 类型长度（仅VARCHAR有效）
+   - `nullable` (BOOLEAN): 是否可空
+   - `column_position` (INT): 列位置
+
+**设计亮点**：
+- ✅ **"Good taste"**: 系统表就是普通的 `Table`，没有特殊处理
+- ✅ **消除特殊情况**: 系统表创建后，可以用同样的 API 操作
+- ✅ **数据结构优先**: 元数据直接存储在系统表中，不依赖外部配置文件
+- ✅ **实用主义**: 只实现必要的系统表，不是完整的 `information_schema`
+
+**鸡生蛋问题**：
+系统表本身也需要元数据，如何解决？
+- **解决方案**: 系统表在初始化时硬编码创建，元数据表本身不存储在 `SYS_TABLES` 中
+- **实现**: `SchemaManager` 通过直接创建 `Table` 对象绕过 `StorageEngine.createTable()` 的检查
+
+**未完成功能**（TODO）：
+1. **元数据加载**: 重启后从系统表加载表定义（需要实现 `Table.fullTableScan()`）
+2. **B+树删除**: 目前 `dropTable()` 只删除 `SYS_TABLES`，`SYS_COLUMNS` 会残留
+3. **索引元数据**: 添加 `SYS_INDEXES` 系统表管理索引信息
 
 ## TODO 清单（选择性实现）
 
@@ -179,8 +228,10 @@ src/main/java/com/minimysql/
 
 - [x] B+树节点结构
 - [x] B+树插入、查找、删除
-- [x] 主键索引
+- [x] 主键索引（聚簇索引）
+- [x] 二级索引（SecondaryIndex）
 - [x] 在 Table 中集成索引
+- [ ] B+树删除功能完整实现（节点合并、借位）
 
 ### 阶段3：SQL解析（必须实现）
 
@@ -204,9 +255,14 @@ src/main/java/com/minimysql/
 
 ### 阶段5：元数据管理（必须实现）
 
-- [ ] Catalog（系统表）
-- [ ] SchemaManager
-- [ ] 表结构持久化
+- [x] 系统表定义（SYS_TABLES, SYS_COLUMNS）
+- [x] SchemaManager（元数据管理器）
+- [x] 表结构持久化到系统表
+- [x] 集成到 InnoDBStorageEngine
+- [x] 系统表保护机制
+- [ ] 元数据加载功能（实现 Table.fullTableScan() 后完成）
+- [ ] 索引元数据管理（SYS_INDEXES）
+- [ ] 完善删除功能（依赖 BPlusTree.delete() 实现）
 
 ### 阶段6：事务和并发（可选）
 

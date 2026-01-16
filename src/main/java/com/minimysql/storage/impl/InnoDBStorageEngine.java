@@ -1,5 +1,7 @@
 package com.minimysql.storage.impl;
 
+import com.minimysql.metadata.SchemaManager;
+import com.minimysql.metadata.SystemTables;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.index.ClusteredIndex;
@@ -74,6 +76,12 @@ public class InnoDBStorageEngine implements StorageEngine {
     /** 引擎是否已关闭 */
     private volatile boolean closed;
 
+    /** Schema管理器(元数据管理) */
+    private SchemaManager schemaManager;
+
+    /** 是否启用元数据持久化 */
+    private final boolean enableMetadataPersistence;
+
     /** 默认缓冲池大小:1024页(16MB) */
     private static final int DEFAULT_BUFFER_POOL_SIZE = 1024;
 
@@ -81,7 +89,7 @@ public class InnoDBStorageEngine implements StorageEngine {
      * 创建默认大小的InnoDB引擎(1024页缓冲池)
      */
     public InnoDBStorageEngine() {
-        this(DEFAULT_BUFFER_POOL_SIZE);
+        this(DEFAULT_BUFFER_POOL_SIZE, true);
     }
 
     /**
@@ -90,10 +98,31 @@ public class InnoDBStorageEngine implements StorageEngine {
      * @param bufferPoolSize 缓冲池大小(页数)
      */
     public InnoDBStorageEngine(int bufferPoolSize) {
+        this(bufferPoolSize, true);
+    }
+
+    /**
+     * 创建InnoDB引擎
+     *
+     * @param bufferPoolSize 缓冲池大小(页数)
+     * @param enableMetadataPersistence 是否启用元数据持久化
+     */
+    public InnoDBStorageEngine(int bufferPoolSize, boolean enableMetadataPersistence) {
         this.bufferPool = new BufferPool(bufferPoolSize);
         this.tables = new ConcurrentHashMap<>();
         this.tableIdGenerator = new AtomicInteger(0);
         this.closed = false;
+        this.enableMetadataPersistence = enableMetadataPersistence;
+
+        // 初始化SchemaManager
+        if (enableMetadataPersistence) {
+            try {
+                this.schemaManager = new SchemaManager(this);
+                this.schemaManager.initialize();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to initialize SchemaManager", e);
+            }
+        }
     }
 
     /**
@@ -101,6 +130,8 @@ public class InnoDBStorageEngine implements StorageEngine {
      *
      * 创建新表，自动分配表ID，初始化聚簇索引(主键索引)。
      * 主键默认为第一列(后续支持PRIMARY KEY约束)。
+     *
+     * 如果启用了元数据持久化，会将表定义写入系统表。
      *
      * @param tableName 表名
      * @param columns 列定义列表
@@ -121,13 +152,30 @@ public class InnoDBStorageEngine implements StorageEngine {
             throw new IllegalArgumentException("Table must have at least one column");
         }
 
-        // 检查表名是否已存在
-        if (tables.containsKey(tableName)) {
+        // 检查是否为系统表名
+        if (SystemTables.isSystemTable(tableName)) {
+            throw new IllegalArgumentException("Cannot create table with system table name: " + tableName);
+        }
+
+        // 检查表名是否已存在(包括元数据缓存)
+        if (tables.containsKey(tableName) ||
+            (enableMetadataPersistence && schemaManager.tableExists(tableName))) {
             throw new IllegalArgumentException("Table already exists: " + tableName);
         }
 
         // 分配表ID
-        int tableId = tableIdGenerator.incrementAndGet();
+        int tableId;
+        if (enableMetadataPersistence) {
+            try {
+                // 通过SchemaManager分配表ID并持久化元数据
+                tableId = schemaManager.createTable(tableName, columns);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to persist table metadata", e);
+            }
+        } else {
+            // 不持久化，直接分配ID
+            tableId = tableIdGenerator.incrementAndGet();
+        }
 
         // 创建表实例
         Table table = new Table(tableId, tableName, columns);
@@ -204,6 +252,8 @@ public class InnoDBStorageEngine implements StorageEngine {
      * 删除表
      *
      * 从内存中移除表，关闭表并释放资源。
+     * 如果启用了元数据持久化，同时删除系统表中的元数据。
+     *
      * 简化实现:只从内存移除，不删除磁盘文件(测试用)。
      * 生产环境应该删除表的数据文件和元数据文件。
      *
@@ -218,11 +268,28 @@ public class InnoDBStorageEngine implements StorageEngine {
             return false;
         }
 
+        // 检查是否为系统表
+        if (SystemTables.isSystemTable(tableName)) {
+            throw new IllegalArgumentException("Cannot drop system table: " + tableName);
+        }
+
         Table table = tables.remove(tableName);
 
         if (table != null) {
             // 关闭表(不刷新脏页，已在close()中处理)
             table.close();
+
+            // 删除元数据
+            if (enableMetadataPersistence) {
+                try {
+                    schemaManager.dropTable(tableName);
+                } catch (Exception e) {
+                    // 元数据删除失败，回滚
+                    tables.put(tableName, table);
+                    throw new RuntimeException("Failed to delete table metadata", e);
+                }
+            }
+
             return true;
         }
 
@@ -425,6 +492,7 @@ public class InnoDBStorageEngine implements StorageEngine {
      * 设计原则:
      * - 关闭所有表(不刷新脏页，Table.close()不负责刷新)
      * - 清空表映射(释放内存)
+     * - 关闭SchemaManager(如果启用)
      * - 标记引擎为已关闭
      * - 不关闭BufferPool(可能有其他地方使用)
      *
@@ -449,12 +517,45 @@ public class InnoDBStorageEngine implements StorageEngine {
         // 清空表映射
         tables.clear();
 
+        // 关闭SchemaManager
+        if (schemaManager != null) {
+            try {
+                schemaManager.close();
+            } catch (Exception e) {
+                System.err.println("Error closing SchemaManager: " + e.getMessage());
+            }
+        }
+
         // 标记为已关闭
         closed = true;
 
         // 注意:不调用bufferPool.flushAllPages()
         // 原因:BufferPool.flushAllPages()有bug，无法正确推断tableId
         // 生产环境应该实现一个更智能的刷新逻辑
+    }
+
+    /**
+     * 注册系统表
+     *
+     * 用于SchemaManager在初始化时注册系统表(SYS_TABLES, SYS_COLUMNS)。
+     * 系统表通过特殊路径创建，不经过createTable()，所以需要手动注册。
+     *
+     * @param table 系统表实例
+     */
+    public void registerSystemTable(Table table) {
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+
+        String tableName = table.getTableName();
+
+        // 检查是否为系统表
+        if (!SystemTables.isSystemTable(tableName)) {
+            throw new IllegalArgumentException("Can only register system tables");
+        }
+
+        // 注册到tables映射
+        tables.put(tableName, table);
     }
 
     /**
