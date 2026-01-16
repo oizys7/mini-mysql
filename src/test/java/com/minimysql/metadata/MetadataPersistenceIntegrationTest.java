@@ -8,6 +8,7 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -68,6 +69,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("创建表并写入元数据")
     public void testCreateTableWithMetadata() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -90,6 +92,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("不能创建系统表")
     public void testCannotCreateSystemTable() {
         // 尝试创建系统表名
         List<Column> columns = Arrays.asList(
@@ -106,6 +109,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("删除表并清理元数据")
     public void testDropTableWithMetadata() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -133,6 +137,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("不能删除系统表")
     public void testCannotDropSystemTable() {
         assertThrows(IllegalArgumentException.class, () -> {
             storageEngine.dropTable(SystemTables.SYS_TABLES);
@@ -144,6 +149,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("插入和查询数据")
     public void testInsertAndQuery() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -173,6 +179,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("创建多个表")
     public void testMultipleTables() {
         // 创建多个表
         List<Column> userColumns = Arrays.asList(
@@ -203,6 +210,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("表ID唯一性")
     public void testTableIdUniqueness() {
         // 创建多个表
         List<Column> columns = Arrays.asList(
@@ -237,6 +245,7 @@ public class MetadataPersistenceIntegrationTest {
     }
 
     @Test
+    @DisplayName("重启引擎")
     public void testRestartEngine() {
         // 第一次启动：创建表并插入数据
         List<Column> columns = Arrays.asList(

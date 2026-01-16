@@ -7,6 +7,7 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -62,6 +63,7 @@ class IndexManagementTest {
      * 测试创建二级索引
      */
     @Test
+    @DisplayName("创建二级索引")
     void testCreateSecondaryIndex() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -87,6 +89,7 @@ class IndexManagementTest {
      * 测试创建唯一索引
      */
     @Test
+    @DisplayName("创建唯一索引")
     void testCreateUniqueIndex() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -106,6 +109,7 @@ class IndexManagementTest {
      * 测试创建重复索引抛出异常
      */
     @Test
+    @DisplayName("创建重复索引抛异常")
     void testCreateDuplicateIndexThrowsException() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -127,6 +131,7 @@ class IndexManagementTest {
      * 测试在不存在的表上创建索引抛出异常
      */
     @Test
+    @DisplayName("不存在的表上创建索引抛异常")
     void testCreateIndexOnNonExistentTableThrowsException() {
         assertThrows(IllegalArgumentException.class, () -> {
             storageEngine.createIndex("nonexistent", "idx_name", "name", false);
@@ -137,6 +142,7 @@ class IndexManagementTest {
      * 测试在不存在的列上创建索引抛出异常
      */
     @Test
+    @DisplayName("不存在的列上创建索引抛异常")
     void testCreateIndexOnNonExistentColumnThrowsException() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -154,6 +160,7 @@ class IndexManagementTest {
      * 测试删除二级索引
      */
     @Test
+    @DisplayName("删除二级索引")
     void testDropSecondaryIndex() {
         // 创建表和索引
         List<Column> columns = Arrays.asList(
@@ -179,6 +186,7 @@ class IndexManagementTest {
      * 测试删除不存在的索引返回false
      */
     @Test
+    @DisplayName("删除不存在的索引返回false")
     void testDropNonExistentIndexReturnsFalse() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -197,6 +205,7 @@ class IndexManagementTest {
      * 测试删除聚簇索引抛出异常
      */
     @Test
+    @DisplayName("删除聚簇索引抛异常")
     void testDropClusteredIndexThrowsException() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -214,6 +223,7 @@ class IndexManagementTest {
      * 测试更新行数据
      */
     @Test
+    @DisplayName("更新行数据")
     void testUpdateRow() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -254,6 +264,7 @@ class IndexManagementTest {
      * 测试更新不存在的行返回0
      */
     @Test
+    @DisplayName("更新不存在的行返回0")
     void testUpdateNonExistentRowReturns0() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -275,6 +286,7 @@ class IndexManagementTest {
      * 测试删除行数据
      */
     @Test
+    @DisplayName("删除行数据")
     void testDeleteRow() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -309,6 +321,7 @@ class IndexManagementTest {
      * 测试删除不存在的行返回0
      */
     @Test
+    @DisplayName("删除不存在的行返回0")
     void testDeleteNonExistentRowReturns0() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -327,6 +340,7 @@ class IndexManagementTest {
      * 测试完整的CRUD操作
      */
     @Test
+    @DisplayName("完整CRUD操作")
     void testFullCRUD() {
         // 创建表
         List<Column> columns = Arrays.asList(

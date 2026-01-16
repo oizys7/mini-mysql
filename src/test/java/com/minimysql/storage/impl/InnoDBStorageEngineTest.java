@@ -7,6 +7,7 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -39,8 +40,9 @@ class InnoDBStorageEngineTest {
 
     @BeforeEach
     void setUp() {
-        // 创建InnoDB存储引擎(缓冲池大小:100页)
-        engine = new InnoDBStorageEngine(100);
+        // 创建InnoDB存储引擎(缓冲池大小:100页，禁用元数据持久化以便测试)
+        // 测试环境不需要持久化元数据，避免系统表干扰测试结果
+        engine = new InnoDBStorageEngine(100, false);
     }
 
     @AfterEach
@@ -69,6 +71,7 @@ class InnoDBStorageEngineTest {
      * 测试创建表
      */
     @Test
+    @DisplayName("创建表")
     void testCreateTable() {
         // 创建列定义
         List<Column> columns = Arrays.asList(
@@ -95,6 +98,7 @@ class InnoDBStorageEngineTest {
      * 测试创建重复表名
      */
     @Test
+    @DisplayName("创建重复表名应抛出异常")
     void testCreateDuplicateTable() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -113,6 +117,7 @@ class InnoDBStorageEngineTest {
      * 测试创建空表名
      */
     @Test
+    @DisplayName("创建空表名应抛出异常")
     void testCreateTableWithEmptyName() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -133,6 +138,7 @@ class InnoDBStorageEngineTest {
      * 测试创建空列列表
      */
     @Test
+    @DisplayName("创建空列列表应抛出异常")
     void testCreateTableWithEmptyColumns() {
         // 空列列表应该抛出异常
         assertThrows(IllegalArgumentException.class, () -> {
@@ -149,6 +155,7 @@ class InnoDBStorageEngineTest {
      * 测试获取表
      */
     @Test
+    @DisplayName("获取表")
     void testGetTable() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -169,6 +176,7 @@ class InnoDBStorageEngineTest {
      * 测试获取不存在的表
      */
     @Test
+    @DisplayName("获取不存在的表应返回null")
     void testGetNonExistentTable() {
         Table table = engine.getTable("nonexistent");
         assertNull(table);
@@ -178,6 +186,7 @@ class InnoDBStorageEngineTest {
      * 测试删除表
      */
     @Test
+    @DisplayName("删除表")
     void testDropTable() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -198,6 +207,7 @@ class InnoDBStorageEngineTest {
      * 测试删除不存在的表
      */
     @Test
+    @DisplayName("删除不存在的表应返回false")
     void testDropNonExistentTable() {
         boolean dropped = engine.dropTable("nonexistent");
         assertFalse(dropped);
@@ -207,6 +217,7 @@ class InnoDBStorageEngineTest {
      * 测试获取所有表名
      */
     @Test
+    @DisplayName("获取所有表名")
     void testGetAllTableNames() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -233,6 +244,7 @@ class InnoDBStorageEngineTest {
      * 测试表ID自动递增
      */
     @Test
+    @DisplayName("表ID自动递增")
     void testTableIdAutoIncrement() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -253,6 +265,7 @@ class InnoDBStorageEngineTest {
      * 测试插入行数据
      */
     @Test
+    @DisplayName("插入行数据")
     void testInsertRow() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -279,6 +292,7 @@ class InnoDBStorageEngineTest {
      * 测试关闭引擎
      */
     @Test
+    @DisplayName("关闭引擎")
     void testCloseEngine() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -307,6 +321,7 @@ class InnoDBStorageEngineTest {
      * 测试重置引擎
      */
     @Test
+    @DisplayName("重置引擎")
     void testResetEngine() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)
@@ -333,6 +348,7 @@ class InnoDBStorageEngineTest {
      * 测试获取缓冲池
      */
     @Test
+    @DisplayName("获取缓冲池")
     void testGetBufferPool() {
         InnoDBStorageEngine innodbEngine = (InnoDBStorageEngine) engine;
         assertNotNull(innodbEngine.getBufferPool());
@@ -343,6 +359,7 @@ class InnoDBStorageEngineTest {
      * 测试toString方法
      */
     @Test
+    @DisplayName("测试toString方法")
     void testToString() {
         String str = engine.toString();
         assertNotNull(str);
@@ -356,6 +373,7 @@ class InnoDBStorageEngineTest {
      * 测试多个表的独立性
      */
     @Test
+    @DisplayName("测试多个表的独立性")
     void testMultipleTablesIndependence() {
         // 创建两个表
         List<Column> userColumns = Arrays.asList(
@@ -390,6 +408,7 @@ class InnoDBStorageEngineTest {
      * 测试策略模式：可以切换不同的存储引擎实现
      */
     @Test
+    @DisplayName("测试策略模式：切换不同存储引擎")
     void testStrategyPattern() {
         // 验证可以使用接口类型引用
         StorageEngine engine1 = new InnoDBStorageEngine(100);
@@ -418,6 +437,7 @@ class InnoDBStorageEngineTest {
      * 测试关闭后无法操作表
      */
     @Test
+    @DisplayName("关闭后无法操作表")
     void testCannotOperateAfterClose() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false)

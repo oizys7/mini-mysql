@@ -4,6 +4,7 @@ import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.page.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -56,6 +57,7 @@ class IndexInterfaceTest {
      * 测试BPlusTree实现Index接口
      */
     @Test
+    @DisplayName("BPlusTree实现Index接口")
     void testBPlusTreeImplementsIndex() {
         PageManager pageManager = new PageManager();
         BPlusTree bPlusTree = new BPlusTree(1, "test_index", false, "id", bufferPool, pageManager) {
@@ -78,6 +80,7 @@ class IndexInterfaceTest {
      * 测试ClusteredIndex实现Index接口
      */
     @Test
+    @DisplayName("ClusteredIndex实现Index接口")
     void testClusteredIndexImplementsIndex() {
         PageManager pageManager = new PageManager();
         ClusteredIndex clusteredIndex = new ClusteredIndex(
@@ -96,6 +99,7 @@ class IndexInterfaceTest {
      * 测试Index接口的多态使用
      */
     @Test
+    @DisplayName("Index接口多态使用")
     void testIndexPolymorphism() {
         PageManager pageManager1 = new PageManager();
         PageManager pageManager2 = new PageManager();
@@ -126,6 +130,7 @@ class IndexInterfaceTest {
      * 测试BufferPool修复bug:脏页刷新到正确的表文件
      */
     @Test
+    @DisplayName("BufferPool脏页刷新bug修复")
     void testBufferPoolFlushBugFixed() {
         // 创建两个表的页
         int table1Id = 1;

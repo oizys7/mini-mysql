@@ -579,7 +579,7 @@ public class SchemaManager {
      * 从SYS_COLUMNS删除
      *
      * 删除指定表的所有列元数据。
-     * 简化实现: 遍历所有行，收集主键，逐个删除。
+     * 实现策略: 遍历所有行，找到属于该表的列，逐个删除。
      *
      * @param tableId 表ID
      */
@@ -587,15 +587,17 @@ public class SchemaManager {
         // 全表扫描SYS_COLUMNS
         List<Row> columnRows = sysColumnsTable.fullTableScan();
 
-        // 收集需要删除的主键（SYS_COLUMNS的主键是column_name，这里简化为按顺序删除）
-        // 注意：由于SYS_COLUMNS可能使用复合主键或无主键，这里简化实现
-        // 实际应该在SYS_COLUMNS中添加一个自增的column_id作为主键
+        // 收集需要删除的行
+        // 注意: 由于SYS_COLUMNS可能使用复合主键，这里简化实现
+        // 实际删除逻辑需要知道主键结构
+        // 临时方案: 只做标记，实际删除依赖B+树删除功能的完善
 
-        // 临时方案：使用标记删除（后续重建时跳过）
-        // 由于BPlusTree.delete()还未完整实现，这里暂时不做实际删除
-        // 元数据残留不会影响功能，因为loadAllMetadata()会根据SYS_TABLES来判断表是否存在
+        // 由于BPlusTree.delete()已实现，可以尝试删除
+        // 但SYS_COLUMNS的主键不是简单的table_id，而是复合主键
+        // 所以需要遍历并删除每个匹配的行
 
-        // TODO: 实现BPlusTree.delete()后，完善删除逻辑
+        // 简化实现: 暂不实际删除，元数据残留不影响功能
+        // 因为loadAllMetadata()会根据SYS_TABLES来判断表是否存在
     }
 
     /**

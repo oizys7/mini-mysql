@@ -8,6 +8,7 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -37,6 +38,7 @@ public class MetadataDemoTest {
     }
 
     @Test
+    @DisplayName("元数据管理完整流程")
     public void testMetadataManagementWorkflow() {
         // 1. 验证系统表已自动创建
         assertTrue(storageEngine.tableExists(SystemTables.SYS_TABLES));

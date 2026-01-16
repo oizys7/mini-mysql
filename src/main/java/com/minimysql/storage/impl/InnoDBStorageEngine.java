@@ -7,6 +7,7 @@ import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.index.ClusteredIndex;
 import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
+import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 
 import java.util.ArrayList;
@@ -380,9 +381,22 @@ public class InnoDBStorageEngine implements StorageEngine {
 
         // 为现有数据构建索引
         // 遍历聚簇索引的所有行,插入到二级索引
-        // 简化实现:这里需要遍历所有DataPage,但目前缺少scanAll()方法
-        // TODO: 实现fullTableScan()后,为现有数据构建索引
-        // 暂时只对新插入的数据生效
+        List<Row> allRows = table.fullTableScan();
+
+        for (Row row : allRows) {
+            // 获取索引列的值
+            Column indexColumn = table.getColumn(columnName);
+            if (indexColumn != null) {
+                int indexColumnIndex = table.getColumns().indexOf(indexColumn);
+                Object indexColumnValue = row.getValue(indexColumnIndex);
+
+                // 获取主键值(用于回表)
+                Object primaryKeyValue = row.getValue(primaryKeyIndex);
+
+                // 插入到二级索引
+                secondaryIndex.insertEntry(indexColumnValue, primaryKeyValue);
+            }
+        }
     }
 
     /**

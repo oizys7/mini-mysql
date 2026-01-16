@@ -227,6 +227,37 @@ public class BPlusTreeNode {
     }
 
     /**
+     * 根据键值删除键值对
+     *
+     * 在叶子节点中查找并删除指定的key。
+     *
+     * @param key 要删除的键
+     * @return 如果找到并删除返回true，否则返回false
+     */
+    public boolean removeKey(int key) {
+        if (!isLeaf) {
+            throw new IllegalStateException("Only leaf nodes can remove key-value pairs");
+        }
+
+        // 查找key的位置
+        int index = -1;
+        for (int i = 0; i < keyCount; i++) {
+            if (keys[i] == key) {
+                index = i;
+                break;
+            }
+        }
+
+        // 如果找到key，删除它
+        if (index != -1) {
+            removeKeyValue(index);
+            return true;
+        }
+
+        return false; // key不存在
+    }
+
+    /**
      * 删除子节点
      *
      * @param index 要删除的键的位置

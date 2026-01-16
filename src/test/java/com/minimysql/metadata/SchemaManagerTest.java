@@ -6,6 +6,7 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -75,6 +76,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("初始化系统表")
     public void testInitialize() throws Exception {
         // 验证系统表已创建
         assertNotNull(storageEngine.getTable(SystemTables.SYS_TABLES));
@@ -82,6 +84,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("创建表元数据")
     public void testCreateTableMetadata() throws Exception {
         // 创建表元数据
         List<Column> columns = Arrays.asList(
@@ -122,6 +125,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("创建重复表应该抛异常")
     public void testCreateDuplicateTable() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -141,6 +145,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("删除表元数据")
     public void testDropTableMetadata() throws Exception {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -166,6 +171,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("删除不存在的表应该抛异常")
     public void testDropNonExistentTable() {
         try {
             schemaManager.dropTable("non_existent_table");
@@ -178,6 +184,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("获取所有表名")
     public void testGetAllTableNames() throws Exception {
         // 创建多个表
         List<Column> columns1 = Arrays.asList(new Column("id", DataType.INT, false));
@@ -196,6 +203,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("表ID应该递增")
     public void testTableIdIncrement() throws Exception {
         // 创建多个表，验证表ID递增
         List<Column> columns = Arrays.asList(new Column("id", DataType.INT, false));
@@ -210,6 +218,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("元数据转换为列定义")
     public void testTableMetadataToColumns() throws Exception {
         // 创建表元数据
         List<Column> originalColumns = Arrays.asList(
@@ -241,6 +250,7 @@ public class SchemaManagerTest {
     }
 
     @Test
+    @DisplayName("重启后元数据持久化")
     public void testMetadataPersistenceAcrossRestarts() throws Exception {
         // 第一次启动：创建表
         List<Column> columns = Arrays.asList(

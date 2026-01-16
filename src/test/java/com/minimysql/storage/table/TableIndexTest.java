@@ -4,6 +4,7 @@ import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.StorageEngine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -60,6 +61,7 @@ class TableIndexTest {
      * 测试聚簇索引是否正确设置到Table
      */
     @Test
+    @DisplayName("聚簇索引设置")
     void testClusteredIndexSet() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -79,6 +81,7 @@ class TableIndexTest {
      * 测试主键查询
      */
     @Test
+    @DisplayName("主键查询")
     void testSelectByPrimaryKey() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -112,6 +115,7 @@ class TableIndexTest {
      * 测试插入时索引同步更新
      */
     @Test
+    @DisplayName("插入时更新索引")
     void testInsertUpdatesIndexes() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -141,6 +145,7 @@ class TableIndexTest {
      * 测试范围查询
      */
     @Test
+    @DisplayName("范围查询")
     void testRangeSelect() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -173,6 +178,7 @@ class TableIndexTest {
      * 测试二级索引管理
      */
     @Test
+    @DisplayName("二级索引管理")
     void testSecondaryIndexManagement() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -196,6 +202,7 @@ class TableIndexTest {
      * 测试查询时聚簇索引未设置
      */
     @Test
+    @DisplayName("没有聚簇索引时的查询")
     void testQueryWithoutClusteredIndex() {
         // 创建没有聚簇索引的表（手动创建Table，不通过StorageEngine）
         List<Column> columns = Arrays.asList(
@@ -221,6 +228,7 @@ class TableIndexTest {
      * 测试索引名称和列名
      */
     @Test
+    @DisplayName("索引元数据")
     void testIndexMetadata() {
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -240,6 +248,7 @@ class TableIndexTest {
      * 测试多表独立性
      */
     @Test
+    @DisplayName("多表独立性")
     void testMultipleTablesIndependence() {
         // 创建两个表
         List<Column> userColumns = Arrays.asList(
@@ -282,6 +291,7 @@ class TableIndexTest {
      * 测试全表扫描（当前是简化实现）
      */
     @Test
+    @DisplayName("全表扫描")
     void testFullTableScan() {
         // 创建表
         List<Column> columns = Arrays.asList(

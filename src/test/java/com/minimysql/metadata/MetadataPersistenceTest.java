@@ -8,6 +8,7 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -62,6 +63,7 @@ public class MetadataPersistenceTest {
     }
 
     @Test
+    @DisplayName("元数据持久化和加载")
     public void testMetadataPersistenceAndLoading() {
         // ========== 第一阶段：创建表并插入数据 ==========
 
@@ -125,6 +127,7 @@ public class MetadataPersistenceTest {
     }
 
     @Test
+    @DisplayName("全表扫描")
     public void testFullTableScan() {
         // 创建存储引擎
         StorageEngine engine = new InnoDBStorageEngine(100, true);
@@ -161,6 +164,7 @@ public class MetadataPersistenceTest {
     }
 
     @Test
+    @DisplayName("系统表全表扫描")
     public void testSystemTablesFullScan() {
         // 创建存储引擎
         StorageEngine engine = new InnoDBStorageEngine(100, true);
