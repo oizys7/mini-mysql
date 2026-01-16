@@ -1,8 +1,8 @@
 package com.minimysql.storage.index;
 
-import com.minimysql.storage.page.DataPage;
+import com.minimysql.storage.table.Column;
+import com.minimysql.storage.table.Row;
 
-import java.util.Arrays;
 
 /**
  * BPlusTreeNode - B+树节点
@@ -673,7 +673,7 @@ public class BPlusTreeNode {
      * @param row Row对象
      * @return 字节数组
      */
-    public static byte[] serializeRow(com.minimysql.storage.table.Row row) {
+    public static byte[] serializeRow(Row row) {
         return row.toBytes();
     }
 
@@ -684,8 +684,8 @@ public class BPlusTreeNode {
      * @param columns 列定义
      * @return Row对象
      */
-    public static com.minimysql.storage.table.Row deserializeRow(
-            byte[] rowBytes, java.util.List<com.minimysql.storage.table.Column> columns) {
-        return com.minimysql.storage.table.Row.fromBytes(columns, rowBytes);
+    public static Row deserializeRow(
+            byte[] rowBytes, java.util.List<Column> columns) {
+        return Row.fromBytes(columns, rowBytes);
     }
 }

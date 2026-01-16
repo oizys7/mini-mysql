@@ -19,6 +19,7 @@ import java.util.List;
  * - 查询效率稳定(O(log N),总是从根到叶)
  * - 节点大小=页大小(16KB),对应InnoDB索引页
  * - 支持聚簇索引(主键)和二级索引
+ * - 实现Index接口,支持多态
  *
  * 设计原则:
  * - 节点存储在DataPage中,通过BufferPool管理
@@ -42,7 +43,7 @@ import java.util.List;
  *      2. 范围查询未完整实现: 需要遍历叶子节点链表
  *      3. 删除操作未实现: B+树删除需要节点合并和借位
  */
-public class BPlusTree {
+public abstract class BPlusTree implements Index {
 
     /** 索引ID(对应表ID+索引编号) */
     private final int indexId;
@@ -137,7 +138,20 @@ public class BPlusTree {
      * @param key 键值(INT类型的哈希码)
      * @return 找到的值,不存在返回null
      */
-    public Object search(int key) {
+    @Override
+    public Object search(Object key) {
+        return searchInt(((Number) key).intValue());
+    }
+
+    /**
+     * 查找键(int版本)
+     *
+     * 内部使用的优化版本，避免类型转换。
+     *
+     * @param key 键值(INT类型的哈希码)
+     * @return 找到的值,不存在返回null
+     */
+    public Object searchInt(int key) {
         BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
         return search(root, key);
     }
@@ -208,7 +222,20 @@ public class BPlusTree {
      * @param key 键值
      * @param value 值
      */
-    public void insert(int key, Object value) {
+    @Override
+    public void insert(Object key, Object value) {
+        insertInt(((Number) key).intValue(), value);
+    }
+
+    /**
+     * 插入键值对(int版本)
+     *
+     * 内部使用的优化版本，避免类型转换。
+     *
+     * @param key 键值
+     * @param value 值
+     */
+    public void insertInt(int key, Object value) {
         BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
         insert(root, key, value);
     }
@@ -291,7 +318,20 @@ public class BPlusTree {
      *
      * @param key 键值
      */
-    public void delete(int key) {
+    @Override
+    public void delete(Object key) {
+        deleteInt(((Number) key).intValue());
+    }
+
+    /**
+     * 删除键(简化实现:暂不实现)
+     *
+     * B+树删除很复杂,需要处理节点合并、借位等。
+     * 生产环境必须实现,学习项目可以先跳过。
+     *
+     * @param key 键值
+     */
+    public void deleteInt(int key) {
         throw new UnsupportedOperationException("Delete not implemented yet");
     }
 
@@ -305,7 +345,22 @@ public class BPlusTree {
      * @param endKey 结束键(包含)
      * @return 键值对列表
      */
-    public List<Object> rangeSearch(int startKey, int endKey) {
+    @Override
+    public List<Object> rangeSearch(Object startKey, Object endKey) {
+        return rangeSearchInt(((Number) startKey).intValue(), ((Number) endKey).intValue());
+    }
+
+    /**
+     * 范围查询
+     *
+     * 利用叶子节点链表,支持范围查询。
+     * 这是B+树相比B树的核心优势。
+     *
+     * @param startKey 起始键(包含)
+     * @param endKey 结束键(包含)
+     * @return 键值对列表
+     */
+    public List<Object> rangeSearchInt(int startKey, int endKey) {
         List<Object> results = new ArrayList<>();
 
         // 1. 找到起始叶子节点
@@ -409,6 +464,7 @@ public class BPlusTree {
             } catch (ClassCastException e) {
                 // 页存在但不是IndexPage,创建新的
                 indexPage = new IndexPage(node);
+                indexPage.setPageId(pageId); // 设置正确的pageId
                 frame.setPage(indexPage);
             }
 
@@ -425,6 +481,7 @@ public class BPlusTree {
     /**
      * 获取索引ID
      */
+    @Override
     public int getIndexId() {
         return indexId;
     }
@@ -432,6 +489,7 @@ public class BPlusTree {
     /**
      * 获取索引名称
      */
+    @Override
     public String getIndexName() {
         return indexName;
     }
@@ -439,6 +497,7 @@ public class BPlusTree {
     /**
      * 是否为聚簇索引
      */
+    @Override
     public boolean isClustered() {
         return isClustered;
     }
@@ -446,13 +505,28 @@ public class BPlusTree {
     /**
      * 获取索引列名
      */
+    @Override
     public String getColumnName() {
         return columnName;
     }
 
     /**
+     * 是否为唯一索引
+     *
+     * B+树索引默认不是唯一索引。
+     * 子类(如UniqueBPlusTree)可以重写此方法。
+     *
+     * @return 默认返回false
+     */
+    @Override
+    public boolean isUnique() {
+        return false;
+    }
+
+    /**
      * 获取树高度
      */
+    @Override
     public int getHeight() {
         return height;
     }

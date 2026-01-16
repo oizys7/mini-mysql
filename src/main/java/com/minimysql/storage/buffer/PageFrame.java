@@ -7,8 +7,9 @@ import com.minimysql.storage.page.Page;
  *
  * 页帧是缓冲池中的基本单位,封装了页数据及其元数据。
  *
- * 页帧包含三个关键元数据:
+ * 页帧包含四个关键元数据:
  * - page: 页数据(DataPage或IndexPage等)
+ * - tableId: 表ID(用于刷新脏页到正确的表文件)
  * - dirty: 脏标记,表示页是否被修改过
  * - pinCount: 引用计数,表示有多少操作正在使用此页
  *
@@ -16,6 +17,7 @@ import com.minimysql.storage.page.Page;
  * - pinCount > 0的页不能被淘汰(正在被使用)
  * - dirty的页在淘汰前必须写回磁盘
  * - pin/unpin必须配对,类似对象的引用计数
+ * - tableId用于修复BufferPool.flushAllPages()的bug
  *
  * "Good taste": 没有锁状态、读写状态等复杂概念,只有dirty和pinCount
  */
@@ -23,6 +25,9 @@ public class PageFrame {
 
     /** 页数据 */
     private Page page;
+
+    /** 表ID(用于脏页刷新到正确的表文件) */
+    private int tableId;
 
     /** 脏标记:页内容是否被修改过 */
     private boolean dirty;
@@ -37,6 +42,7 @@ public class PageFrame {
      */
     public PageFrame(Page page) {
         this.page = page;
+        this.tableId = -1;  // 默认-1,表示未设置
         this.dirty = false;
         this.pinCount = 0;
     }
@@ -55,6 +61,26 @@ public class PageFrame {
      */
     public void setPage(Page page) {
         this.page = page;
+    }
+
+    /**
+     * 获取表ID
+     *
+     * @return 表ID
+     */
+    public int getTableId() {
+        return tableId;
+    }
+
+    /**
+     * 设置表ID
+     *
+     * 在创建页帧时设置,用于将脏页刷新到正确的表文件。
+     *
+     * @param tableId 表ID
+     */
+    public void setTableId(int tableId) {
+        this.tableId = tableId;
     }
 
     /**

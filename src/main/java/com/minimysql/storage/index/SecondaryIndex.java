@@ -118,8 +118,8 @@ public class SecondaryIndex extends BPlusTree {
         // 将主键值哈希为值(简化:只支持INT主键)
         int value = hashPrimaryKey(primaryKeyValue);
 
-        // 插入到B+树
-        insert(key, value);
+        // 插入到B+树(调用int版本避免类型转换)
+        insertInt(key, value);
     }
 
     /**
@@ -134,7 +134,7 @@ public class SecondaryIndex extends BPlusTree {
         }
 
         int key = hashKey(indexColumnValue);
-        Object value = search(key);
+        Object value = searchInt(key);
 
         if (value != null) {
             return value;
@@ -171,7 +171,7 @@ public class SecondaryIndex extends BPlusTree {
         int startKey = hashKey(startValue);
         int endKey = hashKey(endValue);
 
-        return rangeSearch(startKey, endKey);
+        return rangeSearchInt(startKey, endKey);
     }
 
     /**

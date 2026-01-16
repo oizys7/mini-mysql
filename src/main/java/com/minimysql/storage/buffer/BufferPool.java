@@ -165,6 +165,7 @@ public class BufferPool {
             DataPage page = new DataPage();
             page.setPageId(pageId);
             PageFrame frame = new PageFrame(page);
+            frame.setTableId(tableId);  // 设置tableId
 
             pageCache.put(cacheKey, frame);
 
@@ -207,9 +208,8 @@ public class BufferPool {
         try {
             for (PageFrame frame : pageCache.values()) {
                 if (frame.isDirty()) {
-                    Page page = frame.getPage();
-                    // 从pageId推断tableId(简化:pageId < 1M视为table 0)
-                    int tableId = page.getPageId() / 1_000_000;
+                    // 使用PageFrame存储的tableId,而不是错误推断
+                    int tableId = frame.getTableId();
                     writePageToDisk(tableId, frame);
                     frame.clearDirty();
                 }
@@ -269,7 +269,9 @@ public class BufferPool {
                 // 文件不存在,返回空页
                 DataPage page = new DataPage();
                 page.setPageId(pageId);
-                return new PageFrame(page);
+                PageFrame frame = new PageFrame(page);
+                frame.setTableId(tableId);  // 设置tableId
+                return frame;
             }
 
             // 读取文件
@@ -282,7 +284,9 @@ public class BufferPool {
                 // 文件不够大,返回空页
                 DataPage page = new DataPage();
                 page.setPageId(pageId);
-                return new PageFrame(page);
+                PageFrame frame = new PageFrame(page);
+                frame.setTableId(tableId);  // 设置tableId
+                return frame;
             }
 
             // 提取页数据
@@ -293,7 +297,9 @@ public class BufferPool {
             DataPage page = new DataPage();
             page.fromBytes(pageData);
 
-            return new PageFrame(page);
+            PageFrame frame = new PageFrame(page);
+            frame.setTableId(tableId);  // 设置tableId
+            return frame;
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to load page from disk: tableId=" + tableId + ", pageId=" + pageId, e);
@@ -358,8 +364,8 @@ public class BufferPool {
             if (frame.isEvictable()) {
                 // 写回脏页
                 if (frame.isDirty()) {
-                    Page page = frame.getPage();
-                    int tableId = page.getPageId() / 1_000_000;
+                    // 使用PageFrame存储的tableId,而不是错误推断
+                    int tableId = frame.getTableId();
                     writePageToDisk(tableId, frame);
                 }
 
