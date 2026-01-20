@@ -150,8 +150,12 @@ src/main/java/com/minimysql/
    - [ ] 实现元数据加载（依赖 Table.fullTableScan()）
 
 5. **Parser 层**
-   - [ ] ANTLR语法：支持最基本的 SELECT、INSERT、UPDATE、DELETE、CREATE TABLE、DROP TABLE
-   - [ ] AST到Statement的转换
+   - [x] ANTLR语法：支持最基本的 SELECT、INSERT、UPDATE、DELETE、CREATE TABLE、DROP TABLE
+   - [x] AST到Statement的转换
+   - [x] Statement接口体系（Create/Drop/Select/Insert/Update/Delete）
+   - [x] Expression接口体系（列引用/字面量/二元运算/NOT运算）
+   - [x] SQLParser对外接口
+   - [x] 完整的单元测试（15个测试用例全部通过）
 
 6. **Executor 层**
    - [ ] ScanOperator：全表扫描
@@ -235,14 +239,17 @@ src/main/java/com/minimysql/
 
 ### 阶段3：SQL解析（必须实现）
 
-- [ ] ANTLR 语法规则（简化版）
-- [ ] SELECT 语句解析（支持 WHERE）
-- [ ] INSERT 语句解析
-- [ ] UPDATE 语句解析
-- [ ] DELETE 语句解析
-- [ ] CREATE TABLE 语句解析
-- [ ] DROP TABLE 语句解析
-- [ ] AST 节点定义
+- [x] ANTLR 语法规则（简化版）
+- [x] SELECT 语句解析（支持 WHERE）
+- [x] INSERT 语句解析
+- [x] UPDATE 语句解析
+- [x] DELETE 语句解析
+- [x] CREATE TABLE 语句解析
+- [x] DROP TABLE 语句解析
+- [x] AST 节点定义（Statement 和 Expression 接口体系）
+- [x] ASTBuilder（ANTLR AST → Statement 转换）
+- [x] SQLParser 对外接口
+- [x] 单元测试（15个测试用例）
 
 ### 阶段4：执行引擎（必须实现）
 
