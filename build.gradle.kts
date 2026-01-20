@@ -41,5 +41,5 @@ tasks.compileJava {
 
 // Generate ANTLR sources
 tasks.generateGrammarSource {
-    arguments = arguments + listOf("-visitor", "-no-listener")
+    arguments = arguments + listOf("-visitor", "-no-listener", "-package", "com.minimysql.parser")
 }
