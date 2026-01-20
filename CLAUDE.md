@@ -58,6 +58,8 @@ src/main/java/com/minimysql/
 │   ├── MySQLParser.g4       # ANTLR语法规则
 │   ├── ASTNode.java         # 抽象语法树节点
 │   └── Statement.java       # SQL语句接口
+├── result                   # 查询结果层
+│   ├──QueryResult.java      # 查询结果
 ├── optimizer/               # 查询优化层
 │   ├── LogicalPlan.java     # 逻辑执行计划
 │   ├── PhysicalPlan.java    # 物理执行计划
@@ -125,48 +127,100 @@ src/main/java/com/minimysql/
 
 从底向上实现，每层可独立测试：
 
-1. **Storage 层**
-   - [x] Page：固定16KB内存块，支持读写
-   - [x] BufferPool：LRU缓存，支持页换入换出
-   - [x] DataPage：在页中存储行数据（简单槽位结构）
-   - [x] PageManager：管理页的分配和释放
+### 阶段1：核心存储（必须实现）
 
-2. **Table 层**
-   - [x] Column：列定义（类型、长度、是否可空）
-   - [x] Row：行数据（字节数组+偏移量）
-   - [x] Table：表定义（列集合+主键）
+- [x] 项目结构和构建系统
+- [x] Page 接口和 DataPage 实现
+- [x] BufferPool（LRU淘汰算法）
+- [x] PageManager（页分配器，自动持久化到.pagemeta）
+- [x] Row 和 Column 数据结构
+- [x] Table 表定义
+- [x] 文件存储（PageManager自动持久化，BufferPool负责页文件读写）
 
-3. **Index 层**
-   - [x] BPlusTree：基本的B+树实现
-   - [x] 聚簇索引（ClusteredIndex）
-   - [x] 二级索引（SecondaryIndex）
-   - [x] 在表中集成主键和二级索引
+### 阶段2：基础索引（必须实现）
 
-4. **元数据层**
-   - [x] 系统表定义（SYS_TABLES, SYS_COLUMNS）
-   - [x] SchemaManager：管理表元数据的创建、删除、查询
-   - [x] 元数据持久化到系统表
-   - [x] 集成到 InnoDBStorageEngine
-   - [ ] 实现元数据加载（依赖 Table.fullTableScan()）
+- [x] B+树节点结构
+- [x] B+树插入、查找、删除
+- [x] 主键索引（聚簇索引）
+- [x] 二级索引（SecondaryIndex）
+- [x] 在 Table 中集成索引
+- [ ] B+树删除功能完整实现（节点合并、借位）
 
-5. **Parser 层**
-   - [x] ANTLR语法：支持最基本的 SELECT、INSERT、UPDATE、DELETE、CREATE TABLE、DROP TABLE
-   - [x] AST到Statement的转换
-   - [x] Statement接口体系（Create/Drop/Select/Insert/Update/Delete）
-   - [x] Expression接口体系（列引用/字面量/二元运算/NOT运算）
-   - [x] SQLParser对外接口
-   - [x] 完整的单元测试（15个测试用例全部通过）
+### 阶段3：SQL解析（必须实现）
 
-6. **Executor 层**
-   - [ ] ScanOperator：全表扫描
-   - [ ] FilterOperator：条件过滤
-   - [ ] ProjectOperator：列投影
-   - [ ] 火山模型：每个Operator实现 `next()` 和 `hasNext()`
+- [x] ANTLR 语法规则（简化版）
+- [x] SELECT 语句解析（支持 WHERE）
+- [x] INSERT 语句解析
+- [x] UPDATE 语句解析
+- [x] DELETE 语句解析
+- [x] CREATE TABLE 语句解析
+- [x] DROP TABLE 语句解析
+- [x] AST 节点定义（Statement 和 Expression 接口体系）
+- [x] ASTBuilder（ANTLR AST → Statement 转换）
+- [x] SQLParser 对外接口
+- [x] 单元测试（15个测试用例）
 
-7. **元数据**
-   - [x] Catalog：系统表（SYS_TABLES, SYS_COLUMNS）
-   - [x] SchemaManager：元数据管理器
-   - [x] 持久化到系统表（不使用外部文件）
+### 阶段4：执行引擎（必须实现）
+
+- [x] Operator 接口
+- [x] ScanOperator（全表扫描）
+- [x] FilterOperator（WHERE 条件）
+- [x] ProjectOperator（SELECT 列）
+- [x] VolcanoExecutor（迭代器模型）
+- [ ] **InsertOperator（插入行）**
+- [ ] **UpdateOperator（更新行）**
+- [ ] **DeleteOperator（删除行）**
+- [ ] **查询计划生成器（Statement → Operator树）**
+- [ ] VectorizedExecutor（向量化执行）
+
+### 阶段5：元数据管理（必须实现）
+
+- [x] 系统表定义（SYS_TABLES, SYS_COLUMNS）
+- [x] SchemaManager（元数据管理器）
+- [x] 表结构持久化到系统表
+- [x] 集成到 InnoDBStorageEngine
+- [x] 系统表保护机制
+- [x] Table.fullTableScan() 实现（通过聚簇索引getAll()）
+- [ ] **元数据加载功能（启动时从SYS_TABLES加载表定义）**
+- [ ] 索引元数据管理（SYS_INDEXES系统表）
+- [ ] 完善删除功能（依赖 BPlusTree.delete() 实现）
+
+### 阶段6：事务和并发（可选）
+
+- [ ] Transaction 接口
+- [ ] 简单的锁管理器（表级锁）
+- [ ] 行级锁（可选）
+- [ ] ACID 基础支持
+- [ ] WAL 日志（可选）
+
+### 阶段7：查询优化（可选）
+
+- [ ] LogicalPlan
+- [ ] PhysicalPlan
+- [ ] 简单的规则优化（谓词下推）
+- [ ] 索引选择
+- [ ] Join 顺序优化
+
+### 阶段8：高级特性（可选）
+
+- [ ] JoinOperator（Nested Loop Join）
+- [ ] SortOperator（ORDER BY）
+- [ ] AggregationOperator（GROUP BY）
+- [ ] 子查询支持
+
+### 阶段9：性能优化（可选）
+
+- [ ] 向量化执行
+- [ ] 批量插入
+- [ ] 并行查询
+- [ ] 自适应哈希索引
+
+### 阶段10：网络协议（可选）
+
+- [ ] MySQL 协议支持
+- [ ] TCP 服务器
+- [ ] 连接管理
+- [ ] 权限认证
 
 ### 测试策略
 
@@ -212,123 +266,13 @@ src/main/java/com/minimysql/
 - **实现**: `SchemaManager` 通过直接创建 `Table` 对象绕过 `StorageEngine.createTable()` 的检查
 
 **未完成功能**（TODO）：
-1. **元数据加载**: 重启后从系统表加载表定义（需要实现 `Table.fullTableScan()`）
+1. ✅ ~~元数据加载依赖~~: `Table.fullTableScan()` 已通过聚簇索引实现
 2. **B+树删除**: 目前 `dropTable()` 只删除 `SYS_TABLES`，`SYS_COLUMNS` 会残留
 3. **索引元数据**: 添加 `SYS_INDEXES` 系统表管理索引信息
+4. **写操作算子**: InsertOperator, UpdateOperator, DeleteOperator
+5. **查询计划生成**: Parser → Executor 的桥梁（Statement → Operator树）
+6. **元数据加载器**: 启动时从 SYS_TABLES 加载所有表定义
 
-## TODO 清单（选择性实现）
-
-### 阶段1：核心存储（必须实现）
-
-- [x] 项目结构和构建系统
-- [x] Page 接口和 DataPage 实现
-- [x] BufferPool（LRU淘汰算法）
-- [x] PageManager（页分配器）
-- [x] Row 和 Column 数据结构
-- [x] Table 表定义
-- [ ] 简单的文件存储（每页一个文件或单一数据文件）
-
-### 阶段2：基础索引（必须实现）
-
-- [x] B+树节点结构
-- [x] B+树插入、查找、删除
-- [x] 主键索引（聚簇索引）
-- [x] 二级索引（SecondaryIndex）
-- [x] 在 Table 中集成索引
-- [ ] B+树删除功能完整实现（节点合并、借位）
-
-### 阶段3：SQL解析（必须实现）
-
-- [x] ANTLR 语法规则（简化版）
-- [x] SELECT 语句解析（支持 WHERE）
-- [x] INSERT 语句解析
-- [x] UPDATE 语句解析
-- [x] DELETE 语句解析
-- [x] CREATE TABLE 语句解析
-- [x] DROP TABLE 语句解析
-- [x] AST 节点定义（Statement 和 Expression 接口体系）
-- [x] ASTBuilder（ANTLR AST → Statement 转换）
-- [x] SQLParser 对外接口
-- [x] 单元测试（15个测试用例）
-
-### 阶段4：执行引擎（必须实现）
-
-- [ ] Operator 接口
-- [ ] ScanOperator（全表扫描）
-- [ ] FilterOperator（WHERE 条件）
-- [ ] ProjectOperator（SELECT 列）
-- [ ] VolcanoExecutor（迭代器模型）
-- [ ] 简单的查询计划生成
-
-### 阶段5：元数据管理（必须实现）
-
-- [x] 系统表定义（SYS_TABLES, SYS_COLUMNS）
-- [x] SchemaManager（元数据管理器）
-- [x] 表结构持久化到系统表
-- [x] 集成到 InnoDBStorageEngine
-- [x] 系统表保护机制
-- [ ] 元数据加载功能（实现 Table.fullTableScan() 后完成）
-- [ ] 索引元数据管理（SYS_INDEXES）
-- [ ] 完善删除功能（依赖 BPlusTree.delete() 实现）
-
-### 阶段6：事务和并发（可选）
-
-- [ ] Transaction 接口
-- [ ] 简单的锁管理器（表级锁）
-- [ ] 行级锁（可选）
-- [ ] ACID 基础支持
-- [ ] WAL 日志（可选）
-
-### 阶段7：查询优化（可选）
-
-- [ ] LogicalPlan
-- [ ] PhysicalPlan
-- [ ] 简单的规则优化（谓词下推）
-- [ ] 索引选择
-- [ ] Join 顺序优化
-
-### 阶段8：高级特性（可选）
-
-- [ ] JoinOperator（Nested Loop Join）
-- [ ] SortOperator（ORDER BY）
-- [ ] AggregationOperator（GROUP BY）
-- [ ] 子查询支持
-
-### 阶段9：性能优化（可选）
-
-- [ ] 向量化执行
-- [ ] 批量插入
-- [ ] 并行查询
-- [ ] 自适应哈希索引
-
-### 阶段10：网络协议（可选）
-
-- [ ] MySQL 协议支持
-- [ ] TCP 服务器
-- [ ] 连接管理
-- [ ] 权限认证
-
-## 常见问题
-
-### Q: 如何测试单个功能？
-```bash
-# 创建测试类
-./gradlew test --tests com.minimysql.storage.PageTest
-
-# 或者运行特定测试方法
-./gradlew test --tests "*.PageTest.testReadWrite"
-```
-
-### Q: ANTLR 语法修改后如何重新生成？
-```bash
-./gradlew clean generateGrammarSource build
-```
-
-### Q: 数据存储在哪里？
-默认在 `./data/` 目录，每个表对应一个文件。
-
-### Q: 如何调试单条 SQL？
-在 `src/test/java` 下创建集成测试，直接调用 Executor。
 
 ## 关键设计决策
 
@@ -351,3 +295,174 @@ src/main/java/com/minimysql/
 **"Theory and practice sometimes clash. Theory loses. Every single time."**
 
 实现一个能工作的简单系统，而不是一个理论上完美但无法运行的复杂系统。
+
+---
+
+## 🚧 阻塞端到端运行的关键功能
+
+当前架构完善，但无法端到端执行SQL。**最小可运行系统需要完成以下4项**：
+
+### 1. 写操作算子（Executor层）
+
+**问题**：Parser能解析 `INSERT/UPDATE/DELETE`，但Executor无法执行
+
+**需要实现**：
+- `InsertOperator` - 执行插入操作
+- `UpdateOperator` - 执行更新操作
+- `DeleteOperator` - 执行删除操作
+
+**实现要点**：
+- 继承 `Operator` 接口
+- 调用 `Table.insertRow()`, `updateRow()`, `deleteRow()`
+- 返回受影响的行数
+
+**优先级**：🔴 最高（阻塞CRUD功能）
+
+---
+
+### 2. 查询计划生成器（Executor层）
+
+**问题**：Parser和Executor之间缺少桥梁
+
+**需要实现**：
+```java
+class ExecutionPlan {
+    // 根据Statement构建Operator树
+    public static Operator build(Statement statement, StorageEngine storage) {
+        if (statement instanceof SelectStatement) {
+            // Scan → Filter → Project
+        } else if (statement instanceof InsertStatement) {
+            // InsertOperator
+        }
+        // ...
+    }
+}
+```
+
+**实现要点**：
+- 将 `SelectStatement` 转换为 `ScanOperator → FilterOperator → ProjectOperator` 链
+- 将 `InsertStatement` 转换为 `InsertOperator`
+- 支持 `WHERE` 条件下推到 `ScanOperator`
+
+**优先级**：🔴 最高（阻塞SQL执行）
+
+---
+
+### 3. 元数据加载器（Metadata层）
+
+**问题**：重启后无法加载已创建的表，系统"失忆"
+
+**需要实现**：
+```java
+// 在 SchemaManager 或 StorageEngine 初始化时
+public void loadAllTables() {
+    // 从 SYS_TABLES 读取所有表记录
+    List<Row> tableRows = sysTablesTable.fullTableScan();
+
+    for (Row row : tableRows) {
+        int tableId = row.getValue("table_id");
+        String tableName = row.getValue("table_name");
+
+        // 从 SYS_COLUMNS 读取列定义
+        List<Column> columns = loadColumns(tableId);
+
+        // 重建 Table 对象
+        Table table = new Table(tableId, tableName, columns);
+        table.open(bufferPool, pageManager);
+
+        tables.put(tableName, table);
+    }
+}
+```
+
+**依赖**：`Table.fullTableScan()` ✅ 已实现
+
+**优先级**：🔴 高（影响持久化）
+
+---
+
+### 4. 端到端集成测试
+
+**问题**：缺少完整的SQL执行测试
+
+**需要实现**：
+```java
+@Test
+void testEndToEndSQL() {
+    // 1. CREATE TABLE
+    executeSQL("CREATE TABLE users (id INT, name VARCHAR(100))");
+
+    // 2. INSERT
+    executeSQL("INSERT INTO users VALUES (1, 'Alice')");
+
+    // 3. SELECT
+    QueryResult result = executeSQL("SELECT * FROM users WHERE id = 1");
+    assertEquals(1, result.getRowCount());
+}
+```
+
+**优先级**：🟡 中（验证功能完整性）
+
+---
+
+### 5. B+树删除完善（Index层，可选）
+
+**问题**：`BPlusTree.delete()` 会抛出 `UnsupportedOperationException`
+
+**当前状态**：
+- 聚簇索引的删除已实现（简化版：直接删除键值对）
+- 二级索引的删除会失败
+
+**影响范围**：
+- `DROP TABLE` 会残留 `SYS_COLUMNS` 数据
+- `DELETE` 语句可能无法清理二级索引
+
+**实现要点**：
+- 节点合并（当节点元素不足时）
+- 节点借位（从兄弟节点借元素）
+- 根节点降级
+
+**优先级**：🟡 中（影响删除操作的完整性）
+
+---
+
+## 实现顺序建议
+
+```
+第1步：查询计划生成器（1-2小时）
+  ├─ 简单的 Statement → Operator 转换
+  └─ 让 SELECT 能端到端跑通
+
+第2步：写操作算子（2-3小时）
+  ├─ InsertOperator
+  ├─ UpdateOperator
+  └─ DeleteOperator
+
+第3步：元数据加载器（1小时）
+  ├─ 启动时从 SYS_TABLES 加载表定义
+  └─ 让重启后表定义持久化
+
+第4步：集成测试（1小时）
+  └─ 验证完整的 CRUD 流程
+
+第5步：B+树删除完善（2-3小时，可选）
+  └─ 节点合并、借位逻辑
+```
+
+**总计**：核心功能约 5-7 小时可完成
+
+---
+
+## Linus 的判断
+
+**"你已经有了一个漂亮的架构，现在让它跑起来。"**
+
+- ✅ Parser完善（15个测试通过）
+- ✅ Operator接口清晰（3个算子实现）
+- ✅ Storage层完整（页、表、索引）
+- ✅ 元数据持久化（系统表）
+- ❌ **但SQL无法端到端执行**
+
+**这不是架构问题，这是"最后一公里"问题**。
+
+**先做第1-4步，让系统跑起来，第5步可以以后再说。**
