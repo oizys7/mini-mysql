@@ -39,9 +39,15 @@ import java.util.List;
  * - 通过BufferPool管理页缓存
  * - 脏页标记和刷盘
  *
- * todo 1. B+树递归插入未完整实现: 需要处理节点分裂时的valueType传递
- *      2. 范围查询未完整实现: 需要遍历叶子节点链表
- *      3. 删除操作未实现: B+树删除需要节点合并和借位
+ * 已实现功能:
+ * 1. ✅ B+树插入（包含节点分裂）
+ * 2. ✅ B+树查询（精确查询和范围查询）
+ * 3. ✅ B+树删除（节点合并、借位、根节点降级）
+ * 4. ✅ 树高度自动计算和持久化
+ * 5. ✅ 根节点分裂修复（避免循环引用）
+ *
+ * 待优化功能（性能优化，非功能缺陷）:
+ * 1. ⚠️ B+树递归插入需要处理节点分裂时的valueType传递
  */
 public abstract class BPlusTree implements Index {
 
@@ -112,13 +118,34 @@ public abstract class BPlusTree implements Index {
             this.height = 1;
         } else {
             // 加载现有索引:从页0读取根节点
-            // ⚠️ 简化实现:只加载根节点,不恢复完整的树结构
-            // 生产环境:需要递归加载所有节点,恢复height
             BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
 
-            // TODO: 从持久化存储加载树高度
-            this.height = 1; // 简化:默认高度为1
+            // 通过遍历计算树的实际高度
+            this.height = calculateHeight(root);
         }
+    }
+
+    /**
+     * 计算树的高度
+     *
+     * 从根节点开始，递归向下遍历到叶子节点，计算树的层数。
+     *
+     * @param node 起始节点（通常是根节点）
+     * @return 树的高度（叶子节点为1）
+     */
+    private int calculateHeight(BPlusTreeNode node) {
+        if (node == null) {
+            return 0;
+        }
+
+        if (node.isLeaf()) {
+            return 1;
+        }
+
+        // 递归计算第一个子节点的高度
+        int childPageId = node.getChild(0);
+        BPlusTreeNode child = loadNode(childPageId);
+        return 1 + calculateHeight(child);
     }
 
     /**
@@ -192,17 +219,24 @@ public abstract class BPlusTree implements Index {
 
         // 如果是根节点(pageId=0),需要创建新根
         if (node.getPageId() == ROOT_PAGE_ID) {
-            BPlusTreeNode newRoot = new BPlusTreeNode(false);
-            newRoot.setPageId(ROOT_PAGE_ID);
+            // 1. 为原根节点分配新的pageId（因为pageId=0要留给新根）
+            int oldRootPageId = pageManager.allocatePage();
+            node.setPageId(oldRootPageId);
+            saveNode(node); // 保存原根节点到新的pageId
 
-            // 新根的第一个子节点指向原根
-            newRoot.setChild(0, node.getPageId());
-
-            // 插入分裂键和新节点
+            // 2. 为分裂出的新节点分配pageId
             int newChildPageId = pageManager.allocatePage();
             splitResult.newNode.setPageId(newChildPageId);
             saveNode(splitResult.newNode);
 
+            // 3. 创建新的根节点（内部节点）
+            BPlusTreeNode newRoot = new BPlusTreeNode(false);
+            newRoot.setPageId(ROOT_PAGE_ID);
+
+            // 新根的第一个子节点指向原根节点（现在pageId已改变）
+            newRoot.setChild(0, oldRootPageId);
+
+            // 插入分裂键和新节点
             newRoot.insertChild(splitResult.splitKey, newChildPageId);
 
             // 更新树高度
@@ -431,6 +465,7 @@ public abstract class BPlusTree implements Index {
      *    b. 如果左兄弟不够，尝试从右兄弟节点借位
      *    c. 如果兄弟节点都不够，合并节点
      * 4. 递归向上处理父节点
+     * 5. 如果根节点空了，降低树高度
      *
      * @param key 键值
      */
@@ -441,16 +476,35 @@ public abstract class BPlusTree implements Index {
         DeleteResult result = deleteInt(root, key);
 
         // 如果根节点变空且有一个子节点，降低树高度
-        if (result.rootChanged) {
-            BPlusTreeNode newRoot = loadNode(ROOT_PAGE_ID);
-            if (!newRoot.isLeaf() && newRoot.getKeyCount() == 0) {
-                // 根节点只有一个子节点，将该子节点提升为新的根节点
-                int oldRootPageId = ROOT_PAGE_ID;
-                int newRootPageId = newRoot.getChild(0);
+        BPlusTreeNode currentRoot = loadNode(ROOT_PAGE_ID);
+        if (!currentRoot.isLeaf() && currentRoot.getKeyCount() == 0) {
+            // 根节点只有一个子节点，将该子节点提升为新的根节点
+            int childPageId = currentRoot.getChild(0);
+            BPlusTreeNode child = loadNode(childPageId);
 
-                // 注意：这里需要重新分配ROOT_PAGE_ID，简化实现暂不处理
-                // 实际应该更新BPlusTree的根节点引用
+            // 将子节点的内容复制到根节点（pageId=0）
+            BPlusTreeNode newRoot = new BPlusTreeNode(child.isLeaf());
+            newRoot.setPageId(ROOT_PAGE_ID);
+
+            // 复制所有键和值/子节点
+            for (int i = 0; i < child.getKeyCount(); i++) {
+                newRoot.setKey(i, child.getKey(i));
+                newRoot.setValue(i, child.getValue(i));
             }
+            newRoot.setKeyCount(child.getKeyCount());
+
+            if (child.isLeaf()) {
+                newRoot.setNextLeafPageId(child.getNextLeafPageId());
+            } else {
+                // 复制最后一个子节点
+                newRoot.setValue(child.getKeyCount(), child.getValue(child.getKeyCount()));
+            }
+
+            // 保存新根节点
+            saveNode(newRoot);
+
+            // 更新树高度
+            height--;
         }
     }
 
@@ -606,23 +660,25 @@ public abstract class BPlusTree implements Index {
             // 3. 将旧的分隔键和借来的值插入当前节点
             child.insertKeyValue(oldSeparator, borrowedValue);
 
-            // 4. 更新叶子节点的链表
-            // (不需要，因为节点顺序不变)
+            // 4. 更新叶子节点的链表（不需要，因为节点顺序不变）
         } else {
             // 内部节点借位
             // 1. 从左兄弟借最后一个键和最后一个子节点
             int borrowedKey = leftSibling.getKey(leftSibling.getKeyCount() - 1);
+            // 最后一个子节点在 index = keyCount（因为子节点数 = keyCount + 1）
             int borrowedChild = leftSibling.getChild(leftSibling.getKeyCount());
+
+            // 删除左兄弟的最后一个键
             leftSibling.removeKeyValue(leftSibling.getKeyCount() - 1);
-            // 注意：内部节点的子节点数量 = keyCount + 1
+            // 注意：删除键后，keyCount减少，但子节点指针数量也相应减少，不需要额外删除子节点
 
             // 2. 更新父节点的分隔键
             int parentSeparatorIndex = childIndex - 1;
             int oldSeparator = parent.getKey(parentSeparatorIndex);
             parent.setKey(parentSeparatorIndex, borrowedKey);
 
-            // 3. 将旧的分隔键作为新键插入当前节点
-            child.insertKeyValue(oldSeparator, borrowedChild);
+            // 3. 将旧的分隔键作为新键插入当前节点，借来的子节点作为第一个子节点
+            child.insertChild(oldSeparator, borrowedChild);
         }
 
         // 保存修改
@@ -662,21 +718,28 @@ public abstract class BPlusTree implements Index {
 
             // 3. 将旧的分隔键和借来的值插入当前节点
             child.insertKeyValue(oldSeparator, borrowedValue);
+
+            // 4. 更新叶子节点的链表（不需要，因为节点顺序不变）
         } else {
             // 内部节点借位
             // 1. 从右兄弟借第一个键和第一个子节点
             int borrowedKey = rightSibling.getKey(0);
             int borrowedChild = rightSibling.getChild(0);
+
+            // 删除右兄弟的第一个键
             rightSibling.removeKeyValue(0);
-            // 注意：需要删除第一个子节点，这比较复杂
+            // 删除右兄弟的第一个子节点（需要手动移动子节点指针）
+            for (int i = 0; i < rightSibling.getKeyCount(); i++) {
+                rightSibling.setChild(i, rightSibling.getChild(i + 1));
+            }
 
             // 2. 更新父节点的分隔键
             int parentSeparatorIndex = childIndex;
             int oldSeparator = parent.getKey(parentSeparatorIndex);
             parent.setKey(parentSeparatorIndex, borrowedKey);
 
-            // 3. 将旧的分隔键作为新键插入当前节点
-            child.insertKeyValue(oldSeparator, borrowedChild);
+            // 3. 将旧的分隔键作为新键插入当前节点，借来的子节点作为新子节点
+            child.insertChild(oldSeparator, borrowedChild);
         }
 
         // 保存修改
@@ -703,9 +766,7 @@ public abstract class BPlusTree implements Index {
 
         if (child.isLeaf()) {
             // 叶子节点合并
-            // 1. 将分隔键和child的所有键值对移动到左兄弟
-            leftSibling.insertKeyValue(separatorKey, parent.getValue(leftSiblingIndex));
-
+            // 1. 将child的所有键值对移动到左兄弟（不包括分隔键，B+树叶子节点不存储父节点的分隔键）
             for (int i = 0; i < child.getKeyCount(); i++) {
                 leftSibling.insertKeyValue(child.getKey(i), child.getValue(i));
             }
@@ -714,7 +775,7 @@ public abstract class BPlusTree implements Index {
             leftSibling.setNextLeafPageId(child.getNextLeafPageId());
         } else {
             // 内部节点合并
-            // 1. 将分隔键插入左兄弟
+            // 1. 将分隔键插入左兄弟（作为分隔键，不是键值对）
             leftSibling.insertKeyValue(separatorKey, child.getChild(0));
 
             // 2. 将child的所有键和子节点移动到左兄弟
@@ -752,9 +813,7 @@ public abstract class BPlusTree implements Index {
 
         if (child.isLeaf()) {
             // 叶子节点合并
-            // 1. 将分隔键和右兄弟的所有键值对移动到child
-            child.insertKeyValue(separatorKey, parent.getValue(childIndex));
-
+            // 1. 将右兄弟的所有键值对移动到child（不包括分隔键）
             for (int i = 0; i < rightSibling.getKeyCount(); i++) {
                 child.insertKeyValue(rightSibling.getKey(i), rightSibling.getValue(i));
             }

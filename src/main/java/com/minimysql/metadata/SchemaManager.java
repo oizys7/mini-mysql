@@ -247,8 +247,9 @@ public class SchemaManager {
         // 简化实现：使用反射或者添加StorageEngine.createTableInternal()方法
         // 这里我们使用一个变通方案：临时禁用系统表检查
 
-        // TODO: 更好的方案是在StorageEngine接口中添加createTableInternal()方法
-        // 暂时使用反射作为临时方案
+        // TODO 架构优化建议: 在StorageEngine接口中添加createTableInternal()方法
+        // 这样可以避免使用反射，代码更清晰
+        // 当前使用反射作为临时方案
 
         try {
             // 获取BufferPool(假设是InnoDBStorageEngine)
@@ -313,11 +314,14 @@ public class SchemaManager {
      * 强制刷新系统表
      *
      * 确保元数据修改立即写入磁盘。
-     * 简化实现: 直接调用BufferPool刷盘。
+     * 刷新SYS_TABLES和SYS_COLUMNS表的所有脏页。
      */
     private void flushSystemTables() {
-        // TODO: 实现BufferPool的按表刷盘功能
-        // 当前简化: 假设BufferPool会自动管理脏页
+        // 刷新SYS_TABLES表的所有脏页到磁盘
+        storageEngine.getBufferPool().flushTablePages(SystemTables.SYS_TABLES_ID);
+
+        // 刷新SYS_COLUMNS表的所有脏页到磁盘
+        storageEngine.getBufferPool().flushTablePages(SystemTables.SYS_COLUMNS_ID);
     }
 
     /**

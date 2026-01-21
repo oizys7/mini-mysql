@@ -306,10 +306,9 @@ class TableIndexTest {
         Row row = new Row(columns, values);
         users.insertRow(row);
 
-        // 全表扫描（当前返回空列表，简化实现）
+        // 全表扫描（通过聚簇索引的getAll()实现）
         List<Row> results = users.fullTableScan();
-        // TODO: 实现真正的全表扫描后，这个断言应该改为 assertEquals(1, results.size());
         assertEquals(1, results.size());
-//        assertNotNull(results);
+        assertEquals("Alice", results.get(0).getValue("name"));
     }
 }

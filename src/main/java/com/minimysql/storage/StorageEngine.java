@@ -1,5 +1,6 @@
 package com.minimysql.storage;
 
+import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Table;
 
@@ -21,6 +22,7 @@ import java.util.List;
  * 1. 表管理:创建、获取、删除表
  * 2. 引擎生命周期:打开、关闭
  * 3. 元数据查询:检查表是否存在、获取所有表名
+ * 4. BufferPool访问:用于元数据持久化等高级操作
  *
  * 设计原则:
  * - 接口隔离:只定义存储层必需的操作
@@ -129,6 +131,15 @@ public interface StorageEngine {
      * @return 表数量
      */
     int getTableCount();
+
+    /**
+     * 获取BufferPool
+     *
+     * 用于测试、监控和高级操作（如强制刷新系统表）。
+     *
+     * @return BufferPool实例
+     */
+    BufferPool getBufferPool();
 
     /**
      * 关闭存储引擎

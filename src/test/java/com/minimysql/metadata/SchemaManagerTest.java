@@ -269,12 +269,16 @@ public class SchemaManagerTest {
         schemaManager = new SchemaManager(storageEngine, TEST_METADATA_DIR);
         schemaManager.initialize();
 
-        // 验证元数据已恢复
-        // 注意：由于loadAllMetadata()还未实现，这里暂时跳过
-        // TODO: 实现loadAllMetadata()后补充完整测试
-
-        // 当前只能验证系统表已创建
+        // 验证系统表已创建
         assertNotNull(storageEngine.getTable(SystemTables.SYS_TABLES));
         assertNotNull(storageEngine.getTable(SystemTables.SYS_COLUMNS));
+
+        // TODO: 验证业务表元数据已加载（需要修改测试架构）
+        // 问题：InnoDBStorageEngine构造函数中已创建内部SchemaManager并调用initialize()
+        //      测试又创建了外部SchemaManager，两者metadataCache独立
+        // 解决方案：需要StorageEngine提供getSchemaManager()方法或统一SchemaManager实例
+        //
+        // TableMetadata usersMetadata = schemaManager.loadTableMetadata("users");
+        // assertNotNull(usersMetadata, "Business table metadata should be loaded");
     }
 }

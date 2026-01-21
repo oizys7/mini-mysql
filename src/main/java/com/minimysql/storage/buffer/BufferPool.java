@@ -14,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * BufferPool - 缓冲池管理器
- * todo 优化阶段，尝试优化锁的粒度/是否可以不使用锁
+ * TODO 优化阶段，尝试优化锁的粒度/是否可以不使用锁
  *
  * 缓冲池是数据库性能的核心,用于缓存磁盘上的页,减少磁盘I/O。
  *
@@ -200,6 +200,30 @@ public class BufferPool {
     }
 
     /**
+     * 刷新指定表的所有脏页到磁盘
+     *
+     * 遍历页缓存，找出属于指定表的脏页并刷新到磁盘。
+     * 用于元数据修改后强制持久化系统表。
+     *
+     * @param tableId 表ID
+     */
+    public void flushTablePages(int tableId) {
+        lock.lock();
+
+        try {
+            for (PageFrame frame : pageCache.values()) {
+                // 检查页是否属于指定表且为脏页
+                if (frame.getTableId() == tableId && frame.isDirty()) {
+                    writePageToDisk(tableId, frame);
+                    frame.clearDirty();
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * 刷新所有脏页到磁盘
      */
     public void flushAllPages() {
@@ -350,7 +374,7 @@ public class BufferPool {
 
     /**
      * 淘汰一个页
-     * todo 优化阶段，尝试优化算法
+     * TODO 优化阶段，尝试优化算法
      *
      * 从缓存中找到最久未使用且未被pin的页进行淘汰。
      * 如果所有页都被pin,抛出异常(不应该发生,但防御性编程)。

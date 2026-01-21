@@ -319,8 +319,6 @@ class BPlusTreeTest {
 
     @Test
     @DisplayName("索引高度随插入增长")
-    @Disabled("B+树分裂逻辑存在循环引用bug，需要重构分裂算法")
-    // TODO B+树分裂逻辑存在循环引用bug，需要重构分裂算法
     void testIndexHeightGrowth() {
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false),
