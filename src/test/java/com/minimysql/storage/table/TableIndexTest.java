@@ -308,7 +308,8 @@ class TableIndexTest {
 
         // 全表扫描（当前返回空列表，简化实现）
         List<Row> results = users.fullTableScan();
-        assertNotNull(results);
         // TODO: 实现真正的全表扫描后，这个断言应该改为 assertEquals(1, results.size());
+        assertEquals(1, results.size());
+//        assertNotNull(results);
     }
 }

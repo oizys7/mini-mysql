@@ -411,6 +411,112 @@ public class SchemaManager {
     }
 
     /**
+     * 加载所有表的元数据
+     *
+     * 从系统表加载所有表定义，重建Table对象并注册到StorageEngine。
+     * 启动时调用，让系统"记住"已创建的表。
+     *
+     * 设计原则:
+     * - "Good taste": 元数据和表定义是同一份数据，没有副本
+     * - 实用主义: 启动时一次性加载，简化实现
+     *
+     * @throws Exception 加载失败
+     */
+    public void loadAllTables() throws Exception {
+        checkInitialized();
+
+        // 1. 加载所有表元数据
+        loadAllMetadata();
+
+        // 2. 遍历元数据缓存，重建Table对象并注册到StorageEngine
+        for (Map.Entry<String, TableMetadata> entry : metadataCache.entrySet()) {
+            String tableName = entry.getKey();
+            TableMetadata metadata = entry.getValue();
+
+            // 跳过系统表
+            if (SystemTables.isSystemTable(tableName)) {
+                continue;
+            }
+
+            // 检查表是否已经注册
+            if (storageEngine.getTable(tableName) != null) {
+                continue; // 已注册，跳过
+            }
+
+            // 重建Table对象
+            Table table = recreateTableFromMetadata(metadata);
+
+            // 注册到StorageEngine
+            registerTableToEngine(table);
+        }
+    }
+
+    /**
+     * 从元数据重建Table对象
+     *
+     * 将TableMetadata转换为实际的Table对象，包括：
+     * - 创建Table实例
+     * - 打开表(初始化PageManager)
+     * - 创建聚簇索引
+     *
+     * @param metadata 表元数据
+     * @return Table对象
+     */
+    private Table recreateTableFromMetadata(TableMetadata metadata) {
+        // 1. 转换ColumnMetadata到Column列表
+        List<Column> columns = new ArrayList<>();
+        for (ColumnMetadata colMeta : metadata.getColumns()) {
+            Column column = new Column(
+                    colMeta.getName(),
+                    colMeta.getType(),
+                    colMeta.getLength(),
+                    colMeta.isNullable()
+            );
+            columns.add(column);
+        }
+
+        // 2. 创建Table对象
+        Table table = new Table(metadata.getTableId(), metadata.getTableName(), columns);
+
+        // 3. 打开表(初始化BufferPool和PageManager)
+        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
+            com.minimysql.storage.impl.InnoDBStorageEngine innodbEngine =
+                    (com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine;
+
+            // 获取BufferPool和PageManager
+            com.minimysql.storage.buffer.BufferPool bufferPool = innodbEngine.getBufferPool();
+            com.minimysql.storage.page.PageManager pageManager = innodbEngine.getPageManager(metadata.getTableId());
+
+            // 打开表
+            table.open(bufferPool, pageManager);
+
+            // 4. 创建聚簇索引(默认第一列为主键)
+            if (!columns.isEmpty()) {
+                com.minimysql.storage.index.ClusteredIndex clusteredIndex =
+                        innodbEngine.createClusteredIndex(table, 0); // 第一列为主键
+                table.setClusteredIndex(clusteredIndex);
+            }
+        }
+
+        return table;
+    }
+
+    /**
+     * 注册表到StorageEngine
+     *
+     * 将重建的Table对象注册到StorageEngine的tables映射中。
+     *
+     * @param table 表对象
+     */
+    private void registerTableToEngine(Table table) {
+        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
+            com.minimysql.storage.impl.InnoDBStorageEngine innodbEngine =
+                    (com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine;
+            innodbEngine.registerTable(table);
+        }
+    }
+
+    /**
      * 创建表元数据
      *
      * 分配表ID，将表定义写入系统表，更新缓存。

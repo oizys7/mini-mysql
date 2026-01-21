@@ -120,6 +120,9 @@ public class InnoDBStorageEngine implements StorageEngine {
             try {
                 this.schemaManager = new SchemaManager(this);
                 this.schemaManager.initialize();
+
+                // 加载所有表的元数据(重建Table对象并注册)
+                this.schemaManager.loadAllTables();
             } catch (Exception e) {
                 throw new RuntimeException("Failed to initialize SchemaManager", e);
             }
@@ -495,6 +498,83 @@ public class InnoDBStorageEngine implements StorageEngine {
      */
     public BufferPool getBufferPool() {
         return bufferPool;
+    }
+
+    /**
+     * 获取指定表的PageManager
+     *
+     * @param tableId 表ID
+     * @return PageManager实例
+     */
+    public PageManager getPageManager(int tableId) {
+        checkEngineClosed();
+
+        // 每个表有独立的PageManager
+        // 为了简化，这里每次创建新的PageManager实例
+        // 实际使用中，PageManager的状态会从磁盘加载
+        PageManager pageManager = new PageManager();
+        pageManager.load(tableId);
+
+        return pageManager;
+    }
+
+    /**
+     * 为指定表创建聚簇索引
+     *
+     * @param table 表对象
+     * @param primaryKeyIndex 主键列索引
+     * @return 聚簇索引
+     */
+    public ClusteredIndex createClusteredIndex(Table table, int primaryKeyIndex) {
+        checkEngineClosed();
+
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+
+        List<Column> columns = table.getColumns();
+        if (primaryKeyIndex < 0 || primaryKeyIndex >= columns.size()) {
+            throw new IllegalArgumentException("Invalid primary key index: " + primaryKeyIndex);
+        }
+
+        Column primaryKeyColumn = columns.get(primaryKeyIndex);
+
+        // 获取PageManager
+        PageManager pageManager = getPageManager(table.getTableId());
+
+        // 创建聚簇索引
+        return new ClusteredIndex(
+                table.getTableId(),
+                primaryKeyColumn.getName(),
+                primaryKeyIndex,
+                bufferPool,
+                pageManager
+        );
+    }
+
+    /**
+     * 注册表到存储引擎
+     *
+     * 用于元数据加载时将重建的表注册到存储引擎。
+     *
+     * @param table 表对象
+     */
+    public void registerTable(Table table) {
+        checkEngineClosed();
+
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+
+        String tableName = table.getTableName();
+
+        // 检查是否为系统表
+        if (SystemTables.isSystemTable(tableName)) {
+            throw new IllegalArgumentException("Use registerSystemTable() for system tables");
+        }
+
+        // 注册到tables映射
+        tables.put(tableName, table);
     }
 
     /**
