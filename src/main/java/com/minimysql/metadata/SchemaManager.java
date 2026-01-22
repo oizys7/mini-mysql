@@ -9,6 +9,8 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -80,6 +82,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SchemaManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(SchemaManager.class);
+
     /** 存储引擎实例(不拥有，仅使用) */
     private final StorageEngine storageEngine;
 
@@ -148,8 +152,11 @@ public class SchemaManager {
      */
     public void initialize() throws Exception {
         if (initialized) {
+            logger.debug("SchemaManager 已初始化，跳过");
             return; // 已初始化
         }
+
+        logger.info("初始化 SchemaManager，元数据目录: {}", metadataDir);
 
         // 1. 创建元数据目录
         File dir = new File(metadataDir);
@@ -157,6 +164,7 @@ public class SchemaManager {
             if (!dir.mkdirs()) {
                 throw new RuntimeException("Failed to create metadata directory: " + metadataDir);
             }
+            logger.debug("创建元数据目录: {}", metadataDir);
         }
 
         // 2. 初始化系统表
@@ -167,6 +175,8 @@ public class SchemaManager {
 
         // 4. 标记为已初始化
         initialized = true;
+
+        logger.info("SchemaManager 初始化完成");
     }
 
     /**
@@ -204,6 +214,8 @@ public class SchemaManager {
      * 因为系统表的创建是特殊的"一次性操作"，不应该有特殊情况
      */
     private void createSystemTables() {
+        logger.info("创建系统表: {}, {}", SystemTables.SYS_TABLES, SystemTables.SYS_COLUMNS);
+
         // 直接创建Table对象，绕过StorageEngine.createTable()的检查
         // 原因:StorageEngine.createTable()会拒绝系统表名，但系统表本身需要被创建
         // 这是唯一的特殊情况，通过直接创建Table对象来消除
@@ -211,10 +223,12 @@ public class SchemaManager {
         // 创建SYS_TABLES表
         List<Column> sysTablesColumns = SystemTables.getSysTablesColumns();
         sysTablesTable = createSystemTableDirectly(SystemTables.SYS_TABLES_ID, SystemTables.SYS_TABLES, sysTablesColumns);
+        logger.debug("系统表 {} 创建完成", SystemTables.SYS_TABLES);
 
         // 创建SYS_COLUMNS表
         List<Column> sysColumnsColumns = SystemTables.getSysColumnsColumns();
         sysColumnsTable = createSystemTableDirectly(SystemTables.SYS_COLUMNS_ID, SystemTables.SYS_COLUMNS, sysColumnsColumns);
+        logger.debug("系统表 {} 创建完成", SystemTables.SYS_COLUMNS);
 
         // 注册系统表到StorageEngine(这样storageEngine.getTable()才能找到它们)
         registerSystemTableToEngine(sysTablesTable);
@@ -222,6 +236,7 @@ public class SchemaManager {
 
         // 强制刷盘(确保元数据表持久化)
         flushSystemTables();
+        logger.info("系统表创建完成并已持久化");
     }
 
     /**
@@ -268,6 +283,8 @@ public class SchemaManager {
      * 系统表有固定的schema，可以直接创建Table对象
      */
     private void loadSystemTablesFromDisk() {
+        logger.info("从磁盘加载系统表: {}, {}", SystemTables.SYS_TABLES, SystemTables.SYS_COLUMNS);
+
         try {
             // 创建SYS_TABLES表对象（使用预定义的schema）
             List<Column> sysTablesColumns = SystemTables.getSysTablesColumns();
@@ -277,6 +294,7 @@ public class SchemaManager {
                     sysTablesColumns
             );
             registerSystemTableToEngine(sysTablesTable);
+            logger.debug("系统表 {} 加载完成", SystemTables.SYS_TABLES);
 
             // 创建SYS_COLUMNS表对象（使用预定义的schema）
             List<Column> sysColumnsColumns = SystemTables.getSysColumnsColumns();
@@ -286,7 +304,11 @@ public class SchemaManager {
                     sysColumnsColumns
             );
             registerSystemTableToEngine(sysColumnsTable);
+            logger.debug("系统表 {} 加载完成", SystemTables.SYS_COLUMNS);
+
+            logger.info("系统表加载完成");
         } catch (Exception e) {
+            logger.error("从磁盘加载系统表失败", e);
             throw new RuntimeException("Failed to load system tables from disk", e);
         }
     }
@@ -418,8 +440,11 @@ public class SchemaManager {
         // 恢复表ID生成器
         nextTableId = 1;
 
+        logger.info("开始加载元数据");
+
         // 1. 全表扫描SYS_TABLES
         List<Row> tableRows = sysTablesTable.fullTableScan();
+        logger.debug("扫描SYS_TABLES系统表，找到 {} 行", tableRows.size());
 
         // 2. 遍历每个表定义
         for (Row tableRow : tableRows) {
@@ -427,13 +452,17 @@ public class SchemaManager {
             int tableId = (int) tableRow.getValue(0); // table_id列
             String tableName = (String) tableRow.getValue(1); // table_name列
 
+            logger.debug("发现表定义: tableId={}, tableName={}", tableId, tableName);
+
             // 跳过系统表（系统表不在SYS_TABLES中）
             if (SystemTables.isSystemTable(tableName)) {
+                logger.trace("跳过系统表: {}", tableName);
                 continue;
             }
 
             // 3. 从SYS_COLUMNS加载列定义
             List<ColumnMetadata> columns = loadColumnsForTable(tableId);
+            logger.debug("表 {} 加载了 {} 列", tableName, columns.size());
 
             // 4. 构建表元数据并缓存
             TableMetadata metadata = new TableMetadata(tableId, tableName, columns);
@@ -444,6 +473,8 @@ public class SchemaManager {
                 nextTableId = tableId + 1;
             }
         }
+
+        logger.info("元数据加载完成，共加载 {} 个业务表", metadataCache.size());
     }
 
     /**

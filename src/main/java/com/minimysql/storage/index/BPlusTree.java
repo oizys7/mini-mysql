@@ -4,6 +4,8 @@ import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.buffer.PageFrame;
 import com.minimysql.storage.page.IndexPage;
 import com.minimysql.storage.page.PageManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +52,7 @@ import java.util.List;
  * 1. ⚠️ B+树递归插入需要处理节点分裂时的valueType传递
  */
 public abstract class BPlusTree implements Index {
+    private static final Logger logger = LoggerFactory.getLogger(BPlusTree.class);
 
     /** 索引ID(对应表ID+索引编号) */
     private final int indexId;

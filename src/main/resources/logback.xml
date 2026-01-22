@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 控制台输出：彩色日志 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 文件输出：按日期滚动 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/minimysql.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/minimysql.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 根日志级别：生产环境设为INFO -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <!-- 模块特定日志级别 -->
+    <!-- 元数据管理：需要详细日志来调试持久化问题 -->
+    <logger name="com.minimysql.metadata" level="DEBUG"/>
+
+    <!-- 缓冲池：调试页面分配和LRU淘汰 -->
+    <logger name="com.minimysql.storage.buffer" level="DEBUG"/>
+
+    <!-- B+树索引：关键操作记录（INFO），细节调试用DEBUG -->
+    <logger name="com.minimysql.storage.index" level="INFO"/>
+
+    <!-- 存储引擎：主要业务流程 -->
+    <logger name="com.minimysql.storage.impl" level="INFO"/>
+
+    <!-- 执行引擎 -->
+    <logger name="com.minimysql.executor" level="INFO"/>
+
+</configuration>

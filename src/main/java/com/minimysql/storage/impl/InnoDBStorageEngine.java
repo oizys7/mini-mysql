@@ -1,4 +1,6 @@
 package com.minimysql.storage.impl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.minimysql.metadata.SchemaManager;
 import com.minimysql.metadata.SystemTables;
@@ -65,6 +67,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - 不支持跨表事务
  */
 public class InnoDBStorageEngine implements StorageEngine {
+    private static final Logger logger = LoggerFactory.getLogger(InnoDBStorageEngine.class);
 
     /** 全局共享的BufferPool(所有表共用) */
     private final BufferPool bufferPool;
@@ -631,7 +634,7 @@ public class InnoDBStorageEngine implements StorageEngine {
                 table.close();
             } catch (Exception e) {
                 // 记录错误但继续关闭其他表
-                System.err.println("Error closing table: " + table.getTableName() + ", " + e.getMessage());
+                logger.warn("关闭表时出错: {}, 原因: {}", table.getTableName(), e.getMessage());
             }
         }
 
@@ -639,7 +642,7 @@ public class InnoDBStorageEngine implements StorageEngine {
         try {
             bufferPool.flushAllPages();
         } catch (Exception e) {
-            System.err.println("Error flushing buffer pool: " + e.getMessage());
+            logger.error("刷新缓冲池时出错", e);
         }
 
         // 清空表映射
@@ -650,7 +653,7 @@ public class InnoDBStorageEngine implements StorageEngine {
             try {
                 schemaManager.close();
             } catch (Exception e) {
-                System.err.println("Error closing SchemaManager: " + e.getMessage());
+                logger.error("关闭SchemaManager时出错", e);
             }
         }
 
@@ -696,7 +699,7 @@ public class InnoDBStorageEngine implements StorageEngine {
             try {
                 table.close();
             } catch (Exception e) {
-                System.err.println("Error closing table: " + table.getTableName() + ", " + e.getMessage());
+                logger.warn("关闭表时出错: {}, 原因: {}", table.getTableName(), e.getMessage());
             }
         }
 

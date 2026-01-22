@@ -2,6 +2,8 @@ package com.minimysql.storage.buffer;
 
 import com.minimysql.storage.page.DataPage;
 import com.minimysql.storage.page.Page;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,6 +51,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * "实用主义": 文件直接存储在data/目录,每个表一个.db文件
  */
 public class BufferPool {
+
+    private static final Logger logger = LoggerFactory.getLogger(BufferPool.class);
 
     /** 默认缓冲池大小:100页 */
     public static final int DEFAULT_POOL_SIZE = 100;
@@ -237,17 +241,23 @@ public class BufferPool {
      * 刷新所有脏页到磁盘
      */
     public void flushAllPages() {
+        logger.info("开始刷新所有脏页到磁盘");
+
         lock.lock();
 
         try {
+            int dirtyCount = 0;
             for (PageFrame frame : pageCache.values()) {
                 if (frame.isDirty()) {
                     // 使用PageFrame存储的tableId,而不是错误推断
                     int tableId = frame.getTableId();
                     writePageToDisk(tableId, frame);
                     frame.clearDirty();
+                    dirtyCount++;
                 }
             }
+
+            logger.info("刷新完成，共刷新 {} 个脏页", dirtyCount);
         } finally {
             lock.unlock();
         }

@@ -22,6 +22,10 @@ dependencies {
     antlr("org.antlr:antlr4:4.13.0")
     implementation("org.antlr:antlr4-runtime:4.13.0")
 
+    // Logging: SLF4J + Logback
+    implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("ch.qos.logback:logback-classic:1.4.11")
+
     // Testing
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
