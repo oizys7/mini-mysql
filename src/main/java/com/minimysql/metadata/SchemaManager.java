@@ -183,8 +183,14 @@ public class SchemaManager {
         sysColumnsTable = storageEngine.getTable(SystemTables.SYS_COLUMNS);
 
         if (sysTablesTable == null || sysColumnsTable == null) {
-            // 系统表不存在，需要创建
-            createSystemTables();
+            // 检查磁盘上是否存在系统表的数据文件
+            if (systemTablesDataExistsOnDisk()) {
+                // 系统表文件存在，需要加载
+                loadSystemTablesFromDisk();
+            } else {
+                // 系统表不存在，需要创建
+                createSystemTables();
+            }
         }
     }
 
@@ -231,6 +237,61 @@ public class SchemaManager {
     }
 
     /**
+     * 检查系统表数据是否存在于磁盘
+     *
+     * @return 如果系统表的数据文件和元数据文件都存在返回true
+     */
+    private boolean systemTablesDataExistsOnDisk() {
+        try {
+            String dataDir = getBufferPoolFromEngine().getDataDirPath();
+
+            // 检查系统表的元数据文件
+            // 系统表使用 tableId * 100 作为索引ID
+            // SYS_TABLES: -1 * 100 = -100
+            // SYS_COLUMNS: -2 * 100 = -200
+
+            File sysTablesMeta = new File(dataDir, "table_-100.pagemeta");
+            File sysColumnsMeta = new File(dataDir, "table_-200.pagemeta");
+            File sysTablesData = new File(dataDir, "table_-100.db");
+            File sysColumnsData = new File(dataDir, "table_-200.db");
+
+            return sysTablesMeta.exists() && sysColumnsMeta.exists()
+                    && sysTablesData.exists() && sysColumnsData.exists();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 从磁盘加载系统表
+     *
+     * 系统表有固定的schema，可以直接创建Table对象
+     */
+    private void loadSystemTablesFromDisk() {
+        try {
+            // 创建SYS_TABLES表对象（使用预定义的schema）
+            List<Column> sysTablesColumns = SystemTables.getSysTablesColumns();
+            sysTablesTable = createSystemTableDirectly(
+                    SystemTables.SYS_TABLES_ID,
+                    SystemTables.SYS_TABLES,
+                    sysTablesColumns
+            );
+            registerSystemTableToEngine(sysTablesTable);
+
+            // 创建SYS_COLUMNS表对象（使用预定义的schema）
+            List<Column> sysColumnsColumns = SystemTables.getSysColumnsColumns();
+            sysColumnsTable = createSystemTableDirectly(
+                    SystemTables.SYS_COLUMNS_ID,
+                    SystemTables.SYS_COLUMNS,
+                    sysColumnsColumns
+            );
+            registerSystemTableToEngine(sysColumnsTable);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load system tables from disk", e);
+        }
+    }
+
+    /**
      * 直接创建系统表(绕过StorageEngine的检查)
      *
      * 这是唯一允许的特殊处理，因为系统表必须在元数据管理系统之前存在。
@@ -260,8 +321,8 @@ public class SchemaManager {
             // 创建Table对象
             Table table = new Table(tableId, tableName, columns);
 
-            // 创建PageManager
-            PageManager pageManager = new PageManager();
+            // 创建PageManager（使用BufferPool的数据目录）
+            PageManager pageManager = new PageManager(bufferPool.getDataDirPath());
 
             // 打开表
             table.open(bufferPool, pageManager);
@@ -269,6 +330,18 @@ public class SchemaManager {
             // 创建聚簇索引
             ClusteredIndex clusteredIndex = createClusteredIndexForTable(table, columns);
             table.setClusteredIndex(clusteredIndex);
+
+            // 强制保存索引的PageManager元数据
+            // 确保重启后能正确加载系统表
+            try {
+                // 获取聚簇索引的PageManager并保存元数据
+                // 聚簇索引的indexId = tableId * 100
+                PageManager indexPageManager = clusteredIndex.getPageManager();
+                int indexId = tableId * 100;
+                indexPageManager.save(indexId);
+            } catch (Exception e) {
+                // 忽略保存错误（可能索引还没有分配页）
+            }
 
             return table;
         } catch (Exception e) {
@@ -297,8 +370,8 @@ public class SchemaManager {
         String primaryKeyColumn = columns.get(0).getName();
         int primaryKeyIndex = 0;
 
-        PageManager indexPageManager = new PageManager();
         BufferPool bufferPool = getBufferPoolFromEngine();
+        PageManager indexPageManager = new PageManager(bufferPool.getDataDirPath());
 
         ClusteredIndex clusteredIndex = new ClusteredIndex(
                 table.getTableId(),
@@ -720,9 +793,13 @@ public class SchemaManager {
     /**
      * 关闭SchemaManager
      *
-     * 清空缓存，释放资源。
+     * 刷新系统表到磁盘，清空缓存，释放资源。
      */
     public void close() {
+        // 刷新系统表到磁盘（确保元数据持久化）
+        flushSystemTables();
+
+        // 清空缓存
         metadataCache.clear();
         initialized = false;
     }

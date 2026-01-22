@@ -1087,6 +1087,15 @@ public abstract class BPlusTree implements Index {
         return height;
     }
 
+    /**
+     * 获取PageManager
+     *
+     * @return PageManager实例
+     */
+    public PageManager getPageManager() {
+        return pageManager;
+    }
+
     @Override
     public String toString() {
         return "BPlusTree{" +

@@ -1,5 +1,6 @@
 package com.minimysql.storage;
 
+import com.minimysql.metadata.SchemaManager;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Table;
@@ -23,6 +24,7 @@ import java.util.List;
  * 2. 引擎生命周期:打开、关闭
  * 3. 元数据查询:检查表是否存在、获取所有表名
  * 4. BufferPool访问:用于元数据持久化等高级操作
+ * 5. SchemaManager访问:用于元数据管理和查询
  *
  * 设计原则:
  * - 接口隔离:只定义存储层必需的操作
@@ -140,6 +142,15 @@ public interface StorageEngine {
      * @return BufferPool实例
      */
     BufferPool getBufferPool();
+
+    /**
+     * 获取SchemaManager
+     *
+     * 用于元数据管理和查询操作。
+     *
+     * @return SchemaManager实例，如果引擎未启用元数据管理返回null
+     */
+    SchemaManager getSchemaManager();
 
     /**
      * 关闭存储引擎

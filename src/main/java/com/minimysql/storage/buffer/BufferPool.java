@@ -53,8 +53,8 @@ public class BufferPool {
     /** 默认缓冲池大小:100页 */
     public static final int DEFAULT_POOL_SIZE = 100;
 
-    /** 数据目录 */
-    private static final String DATA_DIR = "data";
+    /** 默认数据目录 */
+    private static final String DEFAULT_DATA_DIR = "data";
 
     /** 缓冲池大小(页数) */
     private final int poolSize;
@@ -69,18 +69,28 @@ public class BufferPool {
     private final Path dataDirPath;
 
     /**
-     * 创建默认大小(100页)的缓冲池
+     * 创建默认大小(100页)的缓冲池，使用默认数据目录
      */
     public BufferPool() {
-        this(DEFAULT_POOL_SIZE);
+        this(DEFAULT_POOL_SIZE, DEFAULT_DATA_DIR);
     }
 
     /**
-     * 创建指定大小的缓冲池
+     * 创建指定大小的缓冲池，使用默认数据目录
      *
      * @param poolSize 缓冲池大小(页数)
      */
     public BufferPool(int poolSize) {
+        this(poolSize, DEFAULT_DATA_DIR);
+    }
+
+    /**
+     * 创建指定大小和数据目录的缓冲池
+     *
+     * @param poolSize 缓冲池大小(页数)
+     * @param dataDir 数据目录路径
+     */
+    public BufferPool(int poolSize, String dataDir) {
         this.poolSize = poolSize;
         this.lock = new ReentrantLock();
 
@@ -89,13 +99,13 @@ public class BufferPool {
         this.pageCache = new LinkedHashMap<>(16, 0.75f, true);
 
         // 确保数据目录存在
-        this.dataDirPath = Path.of(DATA_DIR);
+        this.dataDirPath = Path.of(dataDir);
         try {
             if (!Files.exists(dataDirPath)) {
                 Files.createDirectories(dataDirPath);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to create data directory: " + DATA_DIR, e);
+            throw new RuntimeException("Failed to create data directory: " + dataDir, e);
         }
     }
 
@@ -411,5 +421,14 @@ public class BufferPool {
      */
     private Path getTableFilePath(int tableId) {
         return dataDirPath.resolve("table_" + tableId + ".db");
+    }
+
+    /**
+     * 获取数据目录路径
+     *
+     * @return 数据目录路径字符串
+     */
+    public String getDataDirPath() {
+        return dataDirPath.toString();
     }
 }

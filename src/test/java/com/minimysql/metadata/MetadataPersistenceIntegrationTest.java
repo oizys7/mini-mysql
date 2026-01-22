@@ -29,14 +29,23 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MetadataPersistenceIntegrationTest {
 
-    private static final String TEST_DATA_DIR = "./data/test_integration";
+    private static final String TEST_DATA_DIR = getTestDataDir();
     private StorageEngine storageEngine;
+
+    /**
+     * 获取测试数据目录的绝对路径
+     */
+    private static String getTestDataDir() {
+        // 获取当前工作目录（项目根目录）
+        String workingDir = System.getProperty("user.dir");
+        return workingDir + "/data/test_integration";
+    }
 
     @BeforeEach
     public void setUp() {
         cleanupTestDir();
-        // 创建存储引擎，启用元数据持久化
-        storageEngine = new InnoDBStorageEngine(100, true);
+        // 创建存储引擎，启用元数据持久化，使用测试专用数据目录
+        storageEngine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
     }
 
     @AfterEach
@@ -44,7 +53,8 @@ public class MetadataPersistenceIntegrationTest {
         if (storageEngine != null) {
             storageEngine.close();
         }
-        cleanupTestDir();
+        // 注意：不在这里清理测试数据，以便检查数据是否被正确写入
+        // 测试数据会在下一次测试的setUp()中被清理
     }
 
     private void cleanupTestDir() {
@@ -262,16 +272,15 @@ public class MetadataPersistenceIntegrationTest {
         // 关闭引擎
         storageEngine.close();
 
-        // 第二次启动：重新创建引擎
+        // 第二次启动：重新创建引擎（使用相同的测试数据目录）
         // 元数据会自动加载（loadAllMetadata已实现）
-        storageEngine = new InnoDBStorageEngine(100, true);
+        storageEngine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
 
         // 验证系统表已创建
         assertTrue(storageEngine.tableExists(SystemTables.SYS_TABLES));
         assertTrue(storageEngine.tableExists(SystemTables.SYS_COLUMNS));
 
-        // TODO: 验证业务表已自动加载（需要完善loadAllTables功能）
-        // assertTrue(storageEngine.tableExists("users"), "Business table should be auto-loaded");
-        // assertTrue(storageEngine.tableExists("products"), "Business table should be auto-loaded");
+        // 验证业务表已自动加载（loadAllTables功能已完善）
+        assertTrue(storageEngine.tableExists("products"), "Business table should be auto-loaded");
     }
 }

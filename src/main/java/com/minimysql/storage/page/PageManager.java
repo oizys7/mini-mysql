@@ -44,8 +44,11 @@ import java.util.BitSet;
  */
 public class PageManager {
 
-    /** 数据目录 */
-    private static final String DATA_DIR = "data";
+    /** 默认数据目录 */
+    private static final String DEFAULT_DATA_DIR = "data";
+
+    /** 数据目录路径 */
+    private final String dataDir;
 
     /** 元数据文件扩展名 */
     private static final String META_FILE_EXT = ".pagemeta";
@@ -74,9 +77,19 @@ public class PageManager {
     private int tableId;
 
     /**
-     * 创建新的页管理器
+     * 创建新的页管理器（使用默认数据目录）
      */
     public PageManager() {
+        this(DEFAULT_DATA_DIR);
+    }
+
+    /**
+     * 创建新的页管理器（指定数据目录）
+     *
+     * @param dataDir 数据目录路径
+     */
+    public PageManager(String dataDir) {
+        this.dataDir = dataDir;
         this.nextPageId = 0;
         this.freePages = new HashSet<>();
         this.allocatedPages = new BitSet();
@@ -295,7 +308,7 @@ public class PageManager {
      * @return 元数据文件路径
      */
     private Path getMetadataFilePath(int tableId) {
-        return Path.of(DATA_DIR, "table_" + tableId + META_FILE_EXT);
+        return Path.of(dataDir, "table_" + tableId + META_FILE_EXT);
     }
 
     @Override

@@ -29,7 +29,15 @@ public class SchemaManagerTest {
 
     private StorageEngine storageEngine;
     private SchemaManager schemaManager;
-    private static final String TEST_METADATA_DIR = "./data/test_metadata";
+    private static final String TEST_METADATA_DIR = getTestMetadataDir();
+
+    /**
+     * 获取测试元数据目录的绝对路径
+     */
+    private static String getTestMetadataDir() {
+        String workingDir = System.getProperty("user.dir");
+        return workingDir + "/data/test_metadata";
+    }
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -38,15 +46,15 @@ public class SchemaManagerTest {
 
         // 创建存储引擎(启用元数据持久化)
         storageEngine = new InnoDBStorageEngine(100, true);
-        schemaManager = new SchemaManager(storageEngine, TEST_METADATA_DIR);
-        schemaManager.initialize();
+
+        // 使用引擎内部的SchemaManager
+        schemaManager = storageEngine.getSchemaManager();
+        assertNotNull(schemaManager, "SchemaManager should be initialized");
     }
 
     @AfterEach
     public void tearDown() {
-        if (schemaManager != null) {
-            schemaManager.close();
-        }
+        // 关闭存储引擎会自动关闭SchemaManager
         if (storageEngine != null) {
             storageEngine.close();
         }
@@ -260,25 +268,29 @@ public class SchemaManagerTest {
 
         int originalTableId = schemaManager.createTable("posts", columns);
 
-        // 关闭SchemaManager
-        schemaManager.close();
+        // 关闭存储引擎（会自动关闭SchemaManager）
         storageEngine.close();
 
-        // 第二次启动：重新创建SchemaManager
+        // 第二次启动：重新创建存储引擎
         storageEngine = new InnoDBStorageEngine(100, true);
-        schemaManager = new SchemaManager(storageEngine, TEST_METADATA_DIR);
-        schemaManager.initialize();
+
+        // 使用引擎内部的SchemaManager（避免创建独立的实例）
+        schemaManager = storageEngine.getSchemaManager();
+        assertNotNull(schemaManager, "SchemaManager should be available");
 
         // 验证系统表已创建
         assertNotNull(storageEngine.getTable(SystemTables.SYS_TABLES));
         assertNotNull(storageEngine.getTable(SystemTables.SYS_COLUMNS));
 
-        // TODO: 验证业务表元数据已加载（需要修改测试架构）
-        // 问题：InnoDBStorageEngine构造函数中已创建内部SchemaManager并调用initialize()
-        //      测试又创建了外部SchemaManager，两者metadataCache独立
-        // 解决方案：需要StorageEngine提供getSchemaManager()方法或统一SchemaManager实例
-        //
-        // TableMetadata usersMetadata = schemaManager.loadTableMetadata("users");
-        // assertNotNull(usersMetadata, "Business table metadata should be loaded");
+        // 验证业务表元数据已加载（功能已完善）
+        TableMetadata usersMetadata = schemaManager.loadTableMetadata("users");
+        assertNotNull(usersMetadata, "Business table metadata should be loaded");
+        assertEquals("users", usersMetadata.getTableName());
+        assertEquals(3, usersMetadata.getColumns().size());
+
+        // 验证posts表的元数据也已加载
+        TableMetadata postsMetadata = schemaManager.loadTableMetadata("posts");
+        assertNotNull(postsMetadata, "Posts table metadata should be loaded");
+        assertEquals("posts", postsMetadata.getTableName());
     }
 }

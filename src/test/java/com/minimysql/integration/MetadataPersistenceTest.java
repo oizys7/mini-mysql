@@ -33,18 +33,26 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("元数据持久化和加载测试")
 class MetadataPersistenceTest {
 
-    private static final String TEST_DATA_DIR = "test_data_metadata_persistence";
+    private static final String TEST_DATA_DIR = getTestDataDir();
 
     private StorageEngine storageEngine;
     private SQLParser parser;
+
+    /**
+     * 获取测试数据目录的绝对路径
+     */
+    private static String getTestDataDir() {
+        String workingDir = System.getProperty("user.dir");
+        return workingDir + "/test_data_metadata_persistence";
+    }
 
     @BeforeEach
     void setUp() {
         // 清理测试数据
         cleanupTestData();
 
-        // 创建StorageEngine (启用元数据持久化)
-        storageEngine = new InnoDBStorageEngine(10, true);
+        // 创建StorageEngine (启用元数据持久化，使用测试专用数据目录)
+        storageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
 
         // 创建SQL解析器
         parser = new SQLParser();
@@ -57,8 +65,8 @@ class MetadataPersistenceTest {
             storageEngine.close();
         }
 
-        // 清理测试数据
-        cleanupTestData();
+        // 注意：不在这里清理测试数据，因为有些测试需要验证重启后的数据
+        // 测试数据会在setUp()的下一轮测试开始前被清理
     }
 
     @Test
@@ -81,8 +89,8 @@ class MetadataPersistenceTest {
         // 第三步：关闭存储引擎，模拟重启
         storageEngine.close();
 
-        // 第四步：重新创建存储引擎（模拟重启）
-        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true);
+        // 第四步：重新创建存储引擎（模拟重启，使用相同的测试数据目录）
+        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
 
         try {
             // 第五步：验证表定义已经加载
@@ -137,8 +145,8 @@ class MetadataPersistenceTest {
         // 重启
         storageEngine.close();
 
-        // 重新创建存储引擎
-        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true);
+        // 重新创建存储引擎（使用相同的测试数据目录）
+        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
 
         try {
             // 验证两个表都加载了
@@ -201,8 +209,8 @@ class MetadataPersistenceTest {
         // 重启
         storageEngine.close();
 
-        // 重新创建存储引擎
-        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true);
+        // 重新创建存储引擎（使用相同的测试数据目录）
+        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
 
         try {
             // 插入新数据

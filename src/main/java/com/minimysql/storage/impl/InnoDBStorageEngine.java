@@ -84,14 +84,20 @@ public class InnoDBStorageEngine implements StorageEngine {
     /** 是否启用元数据持久化 */
     private final boolean enableMetadataPersistence;
 
+    /** 数据目录路径 */
+    private final String dataDir;
+
     /** 默认缓冲池大小:1024页(16MB) */
     private static final int DEFAULT_BUFFER_POOL_SIZE = 1024;
+
+    /** 默认数据目录 */
+    private static final String DEFAULT_DATA_DIR = "data";
 
     /**
      * 创建默认大小的InnoDB引擎(1024页缓冲池)
      */
     public InnoDBStorageEngine() {
-        this(DEFAULT_BUFFER_POOL_SIZE, true);
+        this(DEFAULT_BUFFER_POOL_SIZE, true, DEFAULT_DATA_DIR);
     }
 
     /**
@@ -100,7 +106,7 @@ public class InnoDBStorageEngine implements StorageEngine {
      * @param bufferPoolSize 缓冲池大小(页数)
      */
     public InnoDBStorageEngine(int bufferPoolSize) {
-        this(bufferPoolSize, true);
+        this(bufferPoolSize, true, DEFAULT_DATA_DIR);
     }
 
     /**
@@ -110,11 +116,23 @@ public class InnoDBStorageEngine implements StorageEngine {
      * @param enableMetadataPersistence 是否启用元数据持久化
      */
     public InnoDBStorageEngine(int bufferPoolSize, boolean enableMetadataPersistence) {
-        this.bufferPool = new BufferPool(bufferPoolSize);
+        this(bufferPoolSize, enableMetadataPersistence, DEFAULT_DATA_DIR);
+    }
+
+    /**
+     * 创建InnoDB引擎（指定数据目录）
+     *
+     * @param bufferPoolSize 缓冲池大小(页数)
+     * @param enableMetadataPersistence 是否启用元数据持久化
+     * @param dataDir 数据目录路径
+     */
+    public InnoDBStorageEngine(int bufferPoolSize, boolean enableMetadataPersistence, String dataDir) {
+        this.bufferPool = new BufferPool(bufferPoolSize, dataDir);
         this.tables = new ConcurrentHashMap<>();
         this.tableIdGenerator = new AtomicInteger(0);
         this.closed = false;
         this.enableMetadataPersistence = enableMetadataPersistence;
+        this.dataDir = dataDir;
 
         // 初始化SchemaManager
         if (enableMetadataPersistence) {
@@ -185,8 +203,8 @@ public class InnoDBStorageEngine implements StorageEngine {
         // 创建表实例
         Table table = new Table(tableId, tableName, columns);
 
-        // 创建独立的PageManager(每表独立)
-        PageManager pageManager = new PageManager();
+        // 创建独立的PageManager(每表独立，使用配置的数据目录)
+        PageManager pageManager = new PageManager(dataDir);
 
         // 打开表(初始化页管理器)
         table.open(bufferPool, pageManager);
@@ -216,8 +234,8 @@ public class InnoDBStorageEngine implements StorageEngine {
         String primaryKeyColumn = columns.get(0).getName();
         int primaryKeyIndex = 0;
 
-        // 创建独立的索引页管理器
-        PageManager indexPageManager = new PageManager();
+        // 创建独立的索引页管理器（使用配置的数据目录）
+        PageManager indexPageManager = new PageManager(dataDir);
 
         // 创建聚簇索引
         ClusteredIndex clusteredIndex = new ClusteredIndex(
@@ -364,8 +382,8 @@ public class InnoDBStorageEngine implements StorageEngine {
         // 获取主键列索引(简化:假设主键是第一列)
         int primaryKeyIndex = 0;
 
-        // 创建独立的索引页管理器
-        PageManager indexPageManager = new PageManager();
+        // 创建独立的索引页管理器（使用配置的数据目录）
+        PageManager indexPageManager = new PageManager(dataDir);
 
         // 创建二级索引
         SecondaryIndex secondaryIndex = new SecondaryIndex(
@@ -501,6 +519,17 @@ public class InnoDBStorageEngine implements StorageEngine {
     }
 
     /**
+     * 获取SchemaManager
+     *
+     * 用于元数据管理和查询。
+     *
+     * @return SchemaManager实例，如果未启用元数据持久化返回null
+     */
+    public com.minimysql.metadata.SchemaManager getSchemaManager() {
+        return schemaManager;
+    }
+
+    /**
      * 获取指定表的PageManager
      *
      * @param tableId 表ID
@@ -512,7 +541,7 @@ public class InnoDBStorageEngine implements StorageEngine {
         // 每个表有独立的PageManager
         // 为了简化，这里每次创建新的PageManager实例
         // 实际使用中，PageManager的状态会从磁盘加载
-        PageManager pageManager = new PageManager();
+        PageManager pageManager = new PageManager(dataDir);
         pageManager.load(tableId);
 
         return pageManager;
@@ -584,13 +613,11 @@ public class InnoDBStorageEngine implements StorageEngine {
      * 关闭后不能再创建或操作表。
      *
      * 设计原则:
-     * - 关闭所有表(不刷新脏页，Table.close()不负责刷新)
+     * - 关闭所有表
+     * - 刷新所有脏页到磁盘
      * - 清空表映射(释放内存)
      * - 关闭SchemaManager(如果启用)
      * - 标记引擎为已关闭
-     * - 不关闭BufferPool(可能有其他地方使用)
-     *
-     * 注意:脏页刷新由调用方负责(如通过BufferPool.flushAllPages())
      */
     @Override
     public void close() {
@@ -608,6 +635,13 @@ public class InnoDBStorageEngine implements StorageEngine {
             }
         }
 
+        // 刷新所有脏页到磁盘
+        try {
+            bufferPool.flushAllPages();
+        } catch (Exception e) {
+            System.err.println("Error flushing buffer pool: " + e.getMessage());
+        }
+
         // 清空表映射
         tables.clear();
 
@@ -622,10 +656,6 @@ public class InnoDBStorageEngine implements StorageEngine {
 
         // 标记为已关闭
         closed = true;
-
-        // 注意:不调用bufferPool.flushAllPages()
-        // 原因:BufferPool.flushAllPages()有bug，无法正确推断tableId
-        // 生产环境应该实现一个更智能的刷新逻辑
     }
 
     /**
