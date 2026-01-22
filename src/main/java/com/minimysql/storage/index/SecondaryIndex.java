@@ -2,6 +2,7 @@ package com.minimysql.storage.index;
 
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.page.PageManager;
+import com.minimysql.storage.table.Row;
 
 /**
  * SecondaryIndex - 二级索引
@@ -149,7 +150,7 @@ public class SecondaryIndex extends BPlusTree {
      * @param indexColumnValue 索引列值
      * @return 完整行数据,不存在返回null
      */
-    public com.minimysql.storage.table.Row selectRow(Object indexColumnValue) {
+    public Row selectRow(Object indexColumnValue) {
         Object primaryKeyValue = findPrimaryKey(indexColumnValue);
 
         if (primaryKeyValue != null) {

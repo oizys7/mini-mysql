@@ -1,11 +1,11 @@
 package com.minimysql.executor;
 
-import com.minimysql.executor.ExpressionEvaluator;
 import com.minimysql.executor.operator.DeleteOperator;
+import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.BinaryExpression;
 import com.minimysql.parser.expressions.ColumnExpression;
 import com.minimysql.parser.expressions.LiteralExpression;
-import com.minimysql.parser.expressions.Operator;
+import com.minimysql.parser.expressions.OperatorEnum;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -90,9 +90,9 @@ class DeleteOperatorTest {
     @DisplayName("测试删除单行(带WHERE条件)")
     void testDeleteSingleRow() {
         // DELETE FROM users WHERE id = 1
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -118,9 +118,9 @@ class DeleteOperatorTest {
     @DisplayName("测试删除多行")
     void testDeleteMultipleRows() {
         // DELETE FROM users WHERE age > 25
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("age"),
-                Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(25)
         );
 
@@ -162,9 +162,9 @@ class DeleteOperatorTest {
     @DisplayName("测试删除不匹配任何行")
     void testDeleteNoRowsMatched() {
         // DELETE FROM users WHERE id = 999
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(999)
         );
 
@@ -187,9 +187,9 @@ class DeleteOperatorTest {
     @DisplayName("测试获取删除的主键列表")
     void testGetDeletedPrimaryKeys() {
         // DELETE FROM users WHERE age > 25
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("age"),
-                Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(25)
         );
 
@@ -207,9 +207,9 @@ class DeleteOperatorTest {
     @DisplayName("测试DELETE后全表扫描")
     void testDeleteThenFullTableScan() {
         // DELETE FROM users WHERE id = 2
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(2)
         );
 
@@ -229,9 +229,9 @@ class DeleteOperatorTest {
     @DisplayName("测试多次删除同一行")
     void testDeleteSameRowTwice() {
         // 第一次删除
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -249,16 +249,16 @@ class DeleteOperatorTest {
     @DisplayName("测试复杂WHERE条件")
     void testDeleteWithComplexWhere() {
         // DELETE FROM users WHERE age > 25 AND age < 35
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(25)
                 ),
-                Operator.AND,
+                OperatorEnum.AND,
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        Operator.LESS_THAN,
+                        OperatorEnum.LESS_THAN,
                         new LiteralExpression(35)
                 )
         );
@@ -281,9 +281,9 @@ class DeleteOperatorTest {
     @Test
     @DisplayName("测试重复执行抛出异常")
     void testDeleteTwiceThrowsException() {
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 

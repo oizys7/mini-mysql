@@ -5,7 +5,7 @@ package com.minimysql.parser.expressions;
  *
  * 定义SQL中支持的二元运算符。
  */
-public enum Operator {
+public enum OperatorEnum {
 
     /** 等于 */
     EQUAL("=", 2),
@@ -40,7 +40,7 @@ public enum Operator {
     /** 优先级(数值越大优先级越高) */
     private final int precedence;
 
-    Operator(String symbol, int precedence) {
+    OperatorEnum(String symbol, int precedence) {
         this.symbol = symbol;
         this.precedence = precedence;
     }
@@ -59,8 +59,8 @@ public enum Operator {
      * @param symbol 运算符符号
      * @return 运算符枚举,如果未知返回null
      */
-    public static Operator fromSymbol(String symbol) {
-        for (Operator op : values()) {
+    public static OperatorEnum fromSymbol(String symbol) {
+        for (OperatorEnum op : values()) {
             if (op.symbol.equals(symbol)) {
                 return op;
             }

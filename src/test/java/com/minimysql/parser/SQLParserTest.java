@@ -121,7 +121,7 @@ class SQLParserTest {
         assertInstanceOf(BinaryExpression.class, where);
 
         BinaryExpression binary = (BinaryExpression) where;
-        assertEquals(Operator.GREATER_THAN, binary.getOperator());
+        assertEquals(OperatorEnum.GREATER_THAN, binary.getOperator());
     }
 
     @Test
@@ -212,7 +212,7 @@ class SQLParserTest {
         assertInstanceOf(BinaryExpression.class, where);
 
         BinaryExpression andExpr = (BinaryExpression) where;
-        assertEquals(Operator.AND, andExpr.getOperator());
+        assertEquals(OperatorEnum.AND, andExpr.getOperator());
     }
 
     @Test

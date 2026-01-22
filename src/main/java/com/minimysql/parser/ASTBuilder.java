@@ -204,7 +204,7 @@ public class ASTBuilder extends MySQLBaseVisitor<Object> {
     public Expression visitArithmeticExpr(MySQLParser.ArithmeticExprContext ctx) {
         Expression left = (Expression) visit(ctx.expression(0));
         Expression right = (Expression) visit(ctx.expression(1));
-        Operator operator = Operator.fromSymbol(ctx.op.getText());
+        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
 
         if (operator == null) {
             throw new ParseException("Unknown operator: " + ctx.op.getText());
@@ -217,7 +217,7 @@ public class ASTBuilder extends MySQLBaseVisitor<Object> {
     public Expression visitComparisonExpr(MySQLParser.ComparisonExprContext ctx) {
         Expression left = (Expression) visit(ctx.expression(0));
         Expression right = (Expression) visit(ctx.expression(1));
-        Operator operator = Operator.fromSymbol(ctx.op.getText());
+        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
 
         if (operator == null) {
             throw new ParseException("Unknown operator: " + ctx.op.getText());
@@ -236,7 +236,7 @@ public class ASTBuilder extends MySQLBaseVisitor<Object> {
     public Expression visitLogicalExpr(MySQLParser.LogicalExprContext ctx) {
         Expression left = (Expression) visit(ctx.expression(0));
         Expression right = (Expression) visit(ctx.expression(1));
-        Operator operator = Operator.fromSymbol(ctx.op.getText());
+        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
 
         if (operator == null) {
             throw new ParseException("Unknown operator: " + ctx.op.getText());

@@ -73,7 +73,7 @@ class ExpressionEvaluatorTest {
     void testEvalEqual() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(25)
         );
 
@@ -88,7 +88,7 @@ class ExpressionEvaluatorTest {
     void testEvalNotEqual() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.NOT_EQUAL,
+                OperatorEnum.NOT_EQUAL,
                 new LiteralExpression(30)
         );
 
@@ -103,7 +103,7 @@ class ExpressionEvaluatorTest {
     void testEvalGreaterThan() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(18)
         );
 
@@ -118,7 +118,7 @@ class ExpressionEvaluatorTest {
     void testEvalLessThan() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.LESS_THAN,
+                OperatorEnum.LESS_THAN,
                 new LiteralExpression(30)
         );
 
@@ -133,7 +133,7 @@ class ExpressionEvaluatorTest {
     void testEvalGreaterEqual() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_EQUAL,
+                OperatorEnum.GREATER_EQUAL,
                 new LiteralExpression(25)
         );
 
@@ -148,7 +148,7 @@ class ExpressionEvaluatorTest {
     void testEvalLessEqual() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.LESS_EQUAL,
+                OperatorEnum.LESS_EQUAL,
                 new LiteralExpression(25)
         );
 
@@ -164,13 +164,13 @@ class ExpressionEvaluatorTest {
         Expression expr = new BinaryExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(18)
                 ),
-                com.minimysql.parser.expressions.Operator.AND,
+                OperatorEnum.AND,
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.LESS_THAN,
+                        OperatorEnum.LESS_THAN,
                         new LiteralExpression(30)
                 )
         );
@@ -187,13 +187,13 @@ class ExpressionEvaluatorTest {
         Expression expr = new BinaryExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.LESS_THAN,
+                        OperatorEnum.LESS_THAN,
                         new LiteralExpression(18)
                 ),
-                com.minimysql.parser.expressions.Operator.OR,
+                OperatorEnum.OR,
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(30)
                 )
         );
@@ -210,7 +210,7 @@ class ExpressionEvaluatorTest {
         Expression expr = new NotExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(30)
                 )
         );
@@ -226,7 +226,7 @@ class ExpressionEvaluatorTest {
     void testEvalAdd() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.ADD,
+                OperatorEnum.ADD,
                 new LiteralExpression(5)
         );
 
@@ -240,7 +240,7 @@ class ExpressionEvaluatorTest {
     void testEvalSubtract() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.SUBTRACT,
+                OperatorEnum.SUBTRACT,
                 new LiteralExpression(5)
         );
 
@@ -254,7 +254,7 @@ class ExpressionEvaluatorTest {
     void testEvalMultiply() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.MULTIPLY,
+                OperatorEnum.MULTIPLY,
                 new LiteralExpression(2)
         );
 
@@ -268,7 +268,7 @@ class ExpressionEvaluatorTest {
     void testEvalDivide() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.DIVIDE,
+                OperatorEnum.DIVIDE,
                 new LiteralExpression(5)
         );
 
@@ -282,7 +282,7 @@ class ExpressionEvaluatorTest {
     void testEvalModulo() {
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.MODULO,
+                OperatorEnum.MODULO,
                 new LiteralExpression(7)
         );
 
@@ -299,20 +299,20 @@ class ExpressionEvaluatorTest {
                 new BinaryExpression(
                         new BinaryExpression(
                                 new ColumnExpression("age"),
-                                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                                OperatorEnum.GREATER_THAN,
                                 new LiteralExpression(18)
                         ),
-                        com.minimysql.parser.expressions.Operator.AND,
+                        OperatorEnum.AND,
                         new BinaryExpression(
                                 new ColumnExpression("age"),
-                                com.minimysql.parser.expressions.Operator.LESS_THAN,
+                                OperatorEnum.LESS_THAN,
                                 new LiteralExpression(30)
                         )
                 ),
-                com.minimysql.parser.expressions.Operator.OR,
+                OperatorEnum.OR,
                 new BinaryExpression(
                         new ColumnExpression("name"),
-                        com.minimysql.parser.expressions.Operator.EQUAL,
+                        OperatorEnum.EQUAL,
                         new LiteralExpression("Bob")
                 )
         );
@@ -339,7 +339,7 @@ class ExpressionEvaluatorTest {
         // 比较Integer和String
         Expression expr = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression("twenty-five")
         );
 
@@ -357,7 +357,7 @@ class ExpressionEvaluatorTest {
 
         Expression expr = new BinaryExpression(
                 new ColumnExpression("name"),
-                com.minimysql.parser.expressions.Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression("Alice")
         );
 

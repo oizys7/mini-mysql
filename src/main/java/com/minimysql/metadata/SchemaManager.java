@@ -2,6 +2,8 @@ package com.minimysql.metadata;
 
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.buffer.BufferPool;
+import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.index.ClusteredIndex;
 import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
@@ -223,8 +225,8 @@ public class SchemaManager {
      * 这样storageEngine.getTable()才能找到它们。
      */
     private void registerSystemTableToEngine(Table table) {
-        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
-            ((com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine).registerSystemTable(table);
+        if (storageEngine instanceof InnoDBStorageEngine) {
+            ((InnoDBStorageEngine) storageEngine).registerSystemTable(table);
         }
     }
 
@@ -253,19 +255,19 @@ public class SchemaManager {
 
         try {
             // 获取BufferPool(假设是InnoDBStorageEngine)
-            com.minimysql.storage.buffer.BufferPool bufferPool = getBufferPoolFromEngine();
+            BufferPool bufferPool = getBufferPoolFromEngine();
 
             // 创建Table对象
             Table table = new Table(tableId, tableName, columns);
 
             // 创建PageManager
-            com.minimysql.storage.page.PageManager pageManager = new com.minimysql.storage.page.PageManager();
+            PageManager pageManager = new PageManager();
 
             // 打开表
             table.open(bufferPool, pageManager);
 
             // 创建聚簇索引
-            com.minimysql.storage.index.ClusteredIndex clusteredIndex = createClusteredIndexForTable(table, columns);
+            ClusteredIndex clusteredIndex = createClusteredIndexForTable(table, columns);
             table.setClusteredIndex(clusteredIndex);
 
             return table;
@@ -279,11 +281,11 @@ public class SchemaManager {
      *
      * 简化实现：假设是InnoDBStorageEngine
      */
-    private com.minimysql.storage.buffer.BufferPool getBufferPoolFromEngine() {
+    private BufferPool getBufferPoolFromEngine() {
         // 简化实现：直接假设是InnoDBStorageEngine并访问其字段
         // 实际应该通过接口方法获取
-        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
-            return ((com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine).getBufferPool();
+        if (storageEngine instanceof InnoDBStorageEngine) {
+            return storageEngine.getBufferPool();
         }
         throw new RuntimeException("Unsupported storage engine type");
     }
@@ -291,14 +293,14 @@ public class SchemaManager {
     /**
      * 为表创建聚簇索引
      */
-    private com.minimysql.storage.index.ClusteredIndex createClusteredIndexForTable(Table table, List<Column> columns) {
+    private ClusteredIndex createClusteredIndexForTable(Table table, List<Column> columns) {
         String primaryKeyColumn = columns.get(0).getName();
         int primaryKeyIndex = 0;
 
-        com.minimysql.storage.page.PageManager indexPageManager = new com.minimysql.storage.page.PageManager();
-        com.minimysql.storage.buffer.BufferPool bufferPool = getBufferPoolFromEngine();
+        PageManager indexPageManager = new PageManager();
+        BufferPool bufferPool = getBufferPoolFromEngine();
 
-        com.minimysql.storage.index.ClusteredIndex clusteredIndex = new com.minimysql.storage.index.ClusteredIndex(
+        ClusteredIndex clusteredIndex = new ClusteredIndex(
                 table.getTableId(),
                 primaryKeyColumn,
                 primaryKeyIndex,
@@ -483,21 +485,17 @@ public class SchemaManager {
         Table table = new Table(metadata.getTableId(), metadata.getTableName(), columns);
 
         // 3. 打开表(初始化BufferPool和PageManager)
-        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
-            com.minimysql.storage.impl.InnoDBStorageEngine innodbEngine =
-                    (com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine;
-
+        if (storageEngine instanceof InnoDBStorageEngine innodbEngine) {
             // 获取BufferPool和PageManager
-            com.minimysql.storage.buffer.BufferPool bufferPool = innodbEngine.getBufferPool();
-            com.minimysql.storage.page.PageManager pageManager = innodbEngine.getPageManager(metadata.getTableId());
+            BufferPool bufferPool = innodbEngine.getBufferPool();
+            PageManager pageManager = innodbEngine.getPageManager(metadata.getTableId());
 
             // 打开表
             table.open(bufferPool, pageManager);
 
             // 4. 创建聚簇索引(默认第一列为主键)
             if (!columns.isEmpty()) {
-                com.minimysql.storage.index.ClusteredIndex clusteredIndex =
-                        innodbEngine.createClusteredIndex(table, 0); // 第一列为主键
+                ClusteredIndex clusteredIndex = innodbEngine.createClusteredIndex(table, 0); // 第一列为主键
                 table.setClusteredIndex(clusteredIndex);
             }
         }
@@ -513,9 +511,7 @@ public class SchemaManager {
      * @param table 表对象
      */
     private void registerTableToEngine(Table table) {
-        if (storageEngine instanceof com.minimysql.storage.impl.InnoDBStorageEngine) {
-            com.minimysql.storage.impl.InnoDBStorageEngine innodbEngine =
-                    (com.minimysql.storage.impl.InnoDBStorageEngine) storageEngine;
+        if (storageEngine instanceof InnoDBStorageEngine innodbEngine) {
             innodbEngine.registerTable(table);
         }
     }

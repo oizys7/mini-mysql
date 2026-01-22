@@ -2,9 +2,11 @@ package com.minimysql.executor;
 
 import com.minimysql.executor.operator.FilterOperator;
 import com.minimysql.executor.operator.ScanOperator;
+import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.BinaryExpression;
 import com.minimysql.parser.expressions.ColumnExpression;
 import com.minimysql.parser.expressions.LiteralExpression;
+import com.minimysql.parser.expressions.OperatorEnum;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -91,9 +93,9 @@ class FilterOperatorTest {
     @DisplayName("测试简单条件过滤 - age > 18")
     void testSimpleFilter() {
         // WHERE age > 18
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(18)
         );
 
@@ -119,16 +121,16 @@ class FilterOperatorTest {
     @DisplayName("测试复杂条件过滤 - age > 18 AND age < 30")
     void testComplexFilter() {
         // WHERE age > 18 AND age < 30
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(18)
                 ),
-                com.minimysql.parser.expressions.Operator.AND,
+                OperatorEnum.AND,
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.LESS_THAN,
+                        OperatorEnum.LESS_THAN,
                         new LiteralExpression(30)
                 )
         );
@@ -148,9 +150,9 @@ class FilterOperatorTest {
     @DisplayName("测试无符合条件的行")
     void testNoMatchingRows() {
         // WHERE age > 100
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(100)
         );
 
@@ -163,9 +165,9 @@ class FilterOperatorTest {
     @DisplayName("测试所有行都符合条件")
     void testAllRowsMatch() {
         // WHERE age > 10
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(10)
         );
 
@@ -185,9 +187,9 @@ class FilterOperatorTest {
     @DisplayName("测试等于条件")
     void testEqualsCondition() {
         // WHERE age = 25
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(25)
         );
 
@@ -205,16 +207,16 @@ class FilterOperatorTest {
     @DisplayName("测试OR条件")
     void testOrCondition() {
         // WHERE age < 18 OR age > 30
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.LESS_THAN,
+                        OperatorEnum.LESS_THAN,
                         new LiteralExpression(18)
                 ),
-                com.minimysql.parser.expressions.Operator.OR,
+                OperatorEnum.OR,
                 new BinaryExpression(
                         new ColumnExpression("age"),
-                        com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                        OperatorEnum.GREATER_THAN,
                         new LiteralExpression(30)
                 )
         );
@@ -236,9 +238,9 @@ class FilterOperatorTest {
     @DisplayName("测试next()在没有更多行时抛异常")
     void testNextThrowsExceptionWhenNoMoreRows() {
         // WHERE age > 100 (无符合条件的行)
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(100)
         );
 
@@ -253,9 +255,9 @@ class FilterOperatorTest {
     @Test
     @DisplayName("测试FilterOperator构造函数空指针检查")
     void testConstructorNullChecks() {
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(18)
         );
 
@@ -278,9 +280,9 @@ class FilterOperatorTest {
     @Test
     @DisplayName("测试getChild()和getWhereCondition()")
     void testGetters() {
-        com.minimysql.parser.Expression whereCondition = new BinaryExpression(
+        Expression whereCondition = new BinaryExpression(
                 new ColumnExpression("age"),
-                com.minimysql.parser.expressions.Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(18)
         );
 

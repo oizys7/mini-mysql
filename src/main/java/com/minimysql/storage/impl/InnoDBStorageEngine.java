@@ -5,6 +5,7 @@ import com.minimysql.metadata.SystemTables;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.index.ClusteredIndex;
+import com.minimysql.storage.index.SecondaryIndex;
 import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Row;
@@ -355,7 +356,7 @@ public class InnoDBStorageEngine implements StorageEngine {
         }
 
         // 获取主键索引(用于回表)
-        com.minimysql.storage.index.ClusteredIndex clusteredIndex = table.getClusteredIndex();
+        ClusteredIndex clusteredIndex = table.getClusteredIndex();
         if (clusteredIndex == null) {
             throw new IllegalStateException("Table has no clustered index");
         }
@@ -367,17 +368,16 @@ public class InnoDBStorageEngine implements StorageEngine {
         PageManager indexPageManager = new PageManager();
 
         // 创建二级索引
-        com.minimysql.storage.index.SecondaryIndex secondaryIndex =
-                new com.minimysql.storage.index.SecondaryIndex(
-                        table.getTableId(),
-                        indexName,
-                        columnName,
-                        primaryKeyIndex,
-                        unique,
-                        clusteredIndex,
-                        bufferPool,
-                        indexPageManager
-                );
+        SecondaryIndex secondaryIndex = new SecondaryIndex(
+                table.getTableId(),
+                indexName,
+                columnName,
+                primaryKeyIndex,
+                unique,
+                clusteredIndex,
+                bufferPool,
+                indexPageManager
+        );
 
         // 添加到表
         table.addSecondaryIndex(indexName, secondaryIndex);

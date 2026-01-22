@@ -8,6 +8,7 @@ import com.minimysql.parser.Statement;
 import com.minimysql.parser.statements.SelectStatement;
 import com.minimysql.result.QueryResult;
 import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 
@@ -131,7 +132,7 @@ public class VolcanoExecutor {
         }
 
         // 2. 构建算子树
-        com.minimysql.executor.Operator operator = buildOperatorTree(selectStatement, table);
+        Operator operator = buildOperatorTree(selectStatement, table);
 
         // 3. 执行查询,收集所有行
         List<Row> rows = new ArrayList<>();
@@ -141,7 +142,7 @@ public class VolcanoExecutor {
         }
 
         // 4. 获取列定义(投影后的列)
-        List<com.minimysql.storage.table.Column> columns;
+        List<Column> columns;
         if (operator instanceof ProjectOperator) {
             ProjectOperator projectOp = (ProjectOperator) operator;
             columns = projectOp.getProjectedColumns();
@@ -164,13 +165,13 @@ public class VolcanoExecutor {
      * @param table 表对象
      * @return 算子树的根节点
      */
-    private com.minimysql.executor.Operator buildOperatorTree(
+    private Operator buildOperatorTree(
             SelectStatement selectStatement,
             Table table) {
 
         // 1. 创建ScanOperator(叶子节点)
         ScanOperator scan = new ScanOperator(table);
-        com.minimysql.executor.Operator current = scan;
+        Operator current = scan;
 
         // 2. 如果有WHERE条件,创建FilterOperator
         if (selectStatement.getWhereClause().isPresent()) {

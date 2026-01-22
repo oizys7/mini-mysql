@@ -173,34 +173,34 @@ public class ExpressionEvaluator {
         // 递归求值左右操作数
         Object left = eval(expr.getLeft(), row, columns);
         Object right = eval(expr.getRight(), row, columns);
-        com.minimysql.parser.expressions.Operator op = expr.getOperator();
+        OperatorEnum op = expr.getOperator();
 
         // 根据运算符类型求值
-        if (op == com.minimysql.parser.expressions.Operator.EQUAL) {
+        if (op == OperatorEnum.EQUAL) {
             return compare(left, right) == 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.NOT_EQUAL) {
+        } else if (op == OperatorEnum.NOT_EQUAL) {
             return compare(left, right) != 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.GREATER_THAN) {
+        } else if (op == OperatorEnum.GREATER_THAN) {
             return compare(left, right) > 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.LESS_THAN) {
+        } else if (op == OperatorEnum.LESS_THAN) {
             return compare(left, right) < 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.GREATER_EQUAL) {
+        } else if (op == OperatorEnum.GREATER_EQUAL) {
             return compare(left, right) >= 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.LESS_EQUAL) {
+        } else if (op == OperatorEnum.LESS_EQUAL) {
             return compare(left, right) <= 0;
-        } else if (op == com.minimysql.parser.expressions.Operator.AND) {
+        } else if (op == OperatorEnum.AND) {
             return toBoolean(left) && toBoolean(right);
-        } else if (op == com.minimysql.parser.expressions.Operator.OR) {
+        } else if (op == OperatorEnum.OR) {
             return toBoolean(left) || toBoolean(right);
-        } else if (op == com.minimysql.parser.expressions.Operator.ADD) {
+        } else if (op == OperatorEnum.ADD) {
             return arithmetic(left, right, ArithmeticOp.ADD);
-        } else if (op == com.minimysql.parser.expressions.Operator.SUBTRACT) {
+        } else if (op == OperatorEnum.SUBTRACT) {
             return arithmetic(left, right, ArithmeticOp.SUBTRACT);
-        } else if (op == com.minimysql.parser.expressions.Operator.MULTIPLY) {
+        } else if (op == OperatorEnum.MULTIPLY) {
             return arithmetic(left, right, ArithmeticOp.MULTIPLY);
-        } else if (op == com.minimysql.parser.expressions.Operator.DIVIDE) {
+        } else if (op == OperatorEnum.DIVIDE) {
             return arithmetic(left, right, ArithmeticOp.DIVIDE);
-        } else if (op == com.minimysql.parser.expressions.Operator.MODULO) {
+        } else if (op == OperatorEnum.MODULO) {
             return arithmetic(left, right, ArithmeticOp.MODULO);
         } else {
             throw new EvaluationException("Unsupported operator: " + op);

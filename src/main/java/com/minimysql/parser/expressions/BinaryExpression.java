@@ -21,12 +21,12 @@ public class BinaryExpression implements Expression {
     private final Expression left;
 
     /** 运算符 */
-    private final Operator operator;
+    private final OperatorEnum operator;
 
     /** 右操作数 */
     private final Expression right;
 
-    public BinaryExpression(Expression left, Operator operator, Expression right) {
+    public BinaryExpression(Expression left, OperatorEnum operator, Expression right) {
         this.left = left;
         this.operator = operator;
         this.right = right;
@@ -36,7 +36,7 @@ public class BinaryExpression implements Expression {
         return left;
     }
 
-    public Operator getOperator() {
+    public OperatorEnum getOperator() {
         return operator;
     }
 

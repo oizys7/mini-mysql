@@ -2,6 +2,7 @@ package com.minimysql.executor;
 
 import com.minimysql.executor.ExpressionEvaluator;
 import com.minimysql.executor.operator.InsertOperator;
+import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.LiteralExpression;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
@@ -83,7 +84,7 @@ class InsertOperatorTest {
     @DisplayName("测试插入单行数据(按表定义顺序)")
     void testInsertSingleRow() {
         // INSERT INTO users VALUES (1, 'Alice', 25)
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression("Alice"),
@@ -113,7 +114,7 @@ class InsertOperatorTest {
     @DisplayName("测试插入多行数据")
     void testInsertMultipleRows() {
         // INSERT INTO users VALUES (1, 'Alice', 25), (2, 'Bob', 30), (3, 'Charlie', 35)
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(new LiteralExpression(1), new LiteralExpression("Alice"), new LiteralExpression(25)),
                 List.of(new LiteralExpression(2), new LiteralExpression("Bob"), new LiteralExpression(30)),
                 List.of(new LiteralExpression(3), new LiteralExpression("Charlie"), new LiteralExpression(35))
@@ -148,7 +149,7 @@ class InsertOperatorTest {
     void testInsertWithColumnNames() {
         // INSERT INTO users (id, age) VALUES (1, 25)
         List<String> columnNames = Arrays.asList("id", "age");
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression(25)
@@ -177,7 +178,7 @@ class InsertOperatorTest {
     @DisplayName("测试插入包含NULL值")
     void testInsertWithNull() {
         // INSERT INTO users VALUES (1, NULL, 25)
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression(null),
@@ -205,7 +206,7 @@ class InsertOperatorTest {
     @DisplayName("测试插入失败:列数不匹配")
     void testInsertColumnCountMismatch() {
         // 提供的值太少
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression("Alice")
@@ -226,7 +227,7 @@ class InsertOperatorTest {
     @DisplayName("测试插入失败:向NOT NULL列插入NULL")
     void testInsertNullToNotNullColumn() {
         // id列是NOT NULL,尝试插入NULL
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(null),
                         new LiteralExpression("Alice"),
@@ -249,7 +250,7 @@ class InsertOperatorTest {
     void testInsertColumnNotFound() {
         // 指定一个不存在的列名
         List<String> columnNames = Arrays.asList("id", "invalid_column");
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression(25)
@@ -270,7 +271,7 @@ class InsertOperatorTest {
     @DisplayName("测试类型自动转换")
     void testInsertTypeConversion() {
         // age列是INT,传入String类型的数字
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(
                         new LiteralExpression(1),
                         new LiteralExpression("Alice"),
@@ -298,7 +299,7 @@ class InsertOperatorTest {
     @Test
     @DisplayName("测试重复执行抛出异常")
     void testInsertTwiceThrowsException() {
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(new LiteralExpression(1), new LiteralExpression("Alice"), new LiteralExpression(25))
         );
 
@@ -318,7 +319,7 @@ class InsertOperatorTest {
     @Test
     @DisplayName("测试构造函数空指针检查")
     void testConstructorNullChecks() {
-        List<List<com.minimysql.parser.Expression>> values = List.of(
+        List<List<Expression>> values = List.of(
                 List.of(new LiteralExpression(1), new LiteralExpression("Alice"), new LiteralExpression(25))
         );
 

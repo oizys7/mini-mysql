@@ -1,11 +1,11 @@
 package com.minimysql.executor;
 
-import com.minimysql.executor.ExpressionEvaluator;
 import com.minimysql.executor.operator.UpdateOperator;
+import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.BinaryExpression;
 import com.minimysql.parser.expressions.ColumnExpression;
 import com.minimysql.parser.expressions.LiteralExpression;
-import com.minimysql.parser.expressions.Operator;
+import com.minimysql.parser.expressions.OperatorEnum;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -92,12 +92,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新单行(带WHERE条件)")
     void testUpdateSingleRow() {
         // UPDATE users SET age = 26 WHERE id = 1
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(26));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -120,12 +120,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新多行")
     void testUpdateMultipleRows() {
         // UPDATE users SET age = 100 WHERE age > 25
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(100));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("age"),
-                Operator.GREATER_THAN,
+                OperatorEnum.GREATER_THAN,
                 new LiteralExpression(25)
         );
 
@@ -148,13 +148,13 @@ class UpdateOperatorTest {
     @DisplayName("测试更新多列")
     void testUpdateMultipleColumns() {
         // UPDATE users SET name = 'Alice Updated', age = 26 WHERE id = 1
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("name", new LiteralExpression("Alice Updated"));
         assignments.put("age", new LiteralExpression(26));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -173,7 +173,7 @@ class UpdateOperatorTest {
     @DisplayName("测试更新所有行(无WHERE条件)")
     void testUpdateAllRows() {
         // UPDATE users SET age = 50
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(50));
 
         UpdateOperator updateOp = new UpdateOperator(table, assignments, null, evaluator);
@@ -195,12 +195,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新不匹配任何行")
     void testUpdateNoRowsMatched() {
         // UPDATE users SET age = 100 WHERE id = 999
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(100));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(999)
         );
 
@@ -214,12 +214,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新失败:尝试更新主键列")
     void testUpdatePrimaryKeyColumn() {
         // 尝试更新id列(主键)
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("id", new LiteralExpression(999));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -232,12 +232,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新失败:列名不存在")
     void testUpdateColumnNotFound() {
         // 指定一个不存在的列
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("invalid_column", new LiteralExpression(100));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -250,12 +250,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新包含NULL值")
     void testUpdateWithNull() {
         // UPDATE users SET name = NULL WHERE id = 1
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("name", new LiteralExpression(null));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -273,12 +273,12 @@ class UpdateOperatorTest {
     @DisplayName("测试更新失败:向NOT NULL列设置NULL")
     void testUpdateNullToNotNullColumn() {
         // 尝试将age列(NOT NULL)设置为NULL
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(null));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -291,12 +291,12 @@ class UpdateOperatorTest {
     @DisplayName("测试类型自动转换")
     void testUpdateTypeConversion() {
         // age列是INT,传入String类型的数字
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression("26")); // String类型,应该自动转换为INT
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -314,12 +314,12 @@ class UpdateOperatorTest {
     @Test
     @DisplayName("测试重复执行抛出异常")
     void testUpdateTwiceThrowsException() {
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(26));
 
-        com.minimysql.parser.Expression whereClause = new BinaryExpression(
+        Expression whereClause = new BinaryExpression(
                 new ColumnExpression("id"),
-                Operator.EQUAL,
+                OperatorEnum.EQUAL,
                 new LiteralExpression(1)
         );
 
@@ -334,7 +334,7 @@ class UpdateOperatorTest {
     @Test
     @DisplayName("测试构造函数空指针检查")
     void testConstructorNullChecks() {
-        Map<String, com.minimysql.parser.Expression> assignments = new HashMap<>();
+        Map<String, Expression> assignments = new HashMap<>();
         assignments.put("age", new LiteralExpression(26));
 
         // table为null
