@@ -3,7 +3,7 @@
 **测试时间**: 2026-01-22
 **测试版本**: 当前开发版本
 **测试文件**: `src/test/java/com/minimysql/integration/MiniMySQLEndToEndTest.java`
-**测试数据目录**: `C:\code\study\mini-mysql\test_data_e2e`
+**测试数据目录**: `C:\code\study\mini-mysql\data\test_data_e2e`
 
 ---
 

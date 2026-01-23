@@ -60,7 +60,7 @@ public class MiniMySQLEndToEndTest {
      */
     private static String getTestDataDir() {
         String workingDir = System.getProperty("user.dir");
-        return workingDir + "/test_data_e2e";
+        return workingDir + "/data/test_data_e2e";
     }
 
     @BeforeEach
