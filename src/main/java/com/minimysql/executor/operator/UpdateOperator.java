@@ -301,7 +301,7 @@ public class UpdateOperator implements Operator {
         }
 
         // 创建新的Row对象
-        return new Row(tableColumns, newValues);
+        return new Row(newValues);
     }
 
     /**

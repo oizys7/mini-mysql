@@ -139,7 +139,7 @@ class ExecutorIntegrationTest {
 
         // 验证所有行的age都 > 25
         for (Row row : result.getRows()) {
-            assertTrue((Integer) row.getValue("age") > 25);
+            assertTrue((Integer) row.getValue(0) > 25);
         }
 
         // 打印结果
@@ -178,7 +178,7 @@ class ExecutorIntegrationTest {
         assertEquals(1, result.getRowCount());
         Row row = result.getRows().get(0);
         assertEquals("Charlie", row.getValue("name"));
-        assertEquals(30, row.getValue("age"));
+        assertEquals(30, row.getValue(0));
 
         // 打印结果
         System.out.println("\n" + sql);
@@ -302,11 +302,11 @@ class ExecutorIntegrationTest {
         storageEngine.createTable("users", columns);
 
         Table table = storageEngine.getTable("users");
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25, 5000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 17, 3000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 30, 6000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{4, "David", 15, 2000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{5, "Eve", 35, 7000.0}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25, 5000.0}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 17, 3000.0}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 30, 6000.0}));
+        table.insertRow(new Row(new Object[]{4, "David", 15, 2000.0}));
+        table.insertRow(new Row(new Object[]{5, "Eve", 35, 7000.0}));
     }
 
     /**
@@ -323,10 +323,10 @@ class ExecutorIntegrationTest {
         storageEngine.createTable("products", columns);
 
         Table table = storageEngine.getTable("products");
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Laptop", 1000.0, 50}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Mouse", 50.0, 30}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Keyboard", 100.0, 80}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{4, "Monitor", 1000.0, 60}));
+        table.insertRow(new Row(new Object[]{1, "Laptop", 1000.0, 50}));
+        table.insertRow(new Row(new Object[]{2, "Mouse", 50.0, 30}));
+        table.insertRow(new Row(new Object[]{3, "Keyboard", 100.0, 80}));
+        table.insertRow(new Row(new Object[]{4, "Monitor", 1000.0, 60}));
     }
 
     /**

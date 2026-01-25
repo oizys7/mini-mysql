@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 重启后状态恢复
  * - BitSet内存优化验证
  */
+@DisplayName("PageManager - 元数据持久化测试")
 class PageManagerPersistenceTest {
 
     private static final int TEST_TABLE_ID = 999;
@@ -235,12 +236,6 @@ class PageManagerPersistenceTest {
         long freeTime = System.nanoTime() - startFree;
 
         assertEquals(pageCount / 2, manager.getAllocatedPageCount());
-
-        // 验证: BitSet操作应该在毫秒级完成
-        System.out.println("Allocation time for " + pageCount + " pages: " +
-                (allocTime / 1_000_000) + "ms");
-        System.out.println("Free time for " + (pageCount / 2) + " pages: " +
-                (freeTime / 1_000_000) + "ms");
 
         // 断言:应该在合理时间内完成(1秒内)
         assertTrue(allocTime < 1_000_000_000, "Allocation too slow");

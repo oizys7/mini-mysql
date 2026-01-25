@@ -207,7 +207,21 @@ public class ProjectOperator implements Operator {
                 // 列引用:直接从原Row中获取值
                 ColumnExpression colExpr = (ColumnExpression) item;
                 String columnName = colExpr.getColumnName();
-                Object value = originalRow.getValue(columnName);
+
+                // 从 originalColumns 中查找列索引
+                int columnIndex = -1;
+                for (int i = 0; i < originalColumns.size(); i++) {
+                    if (originalColumns.get(i).getName().equalsIgnoreCase(columnName)) {
+                        columnIndex = i;
+                        break;
+                    }
+                }
+
+                if (columnIndex < 0) {
+                    throw new IllegalArgumentException("Column not found: " + columnName);
+                }
+
+                Object value = originalRow.getValue(columnIndex);
                 projectedValues.add(value);
             } else {
                 // 表达式:求值后添加
@@ -216,7 +230,7 @@ public class ProjectOperator implements Operator {
             }
         }
 
-        return new Row(projectedColumns, projectedValues.toArray());
+        return new Row(projectedValues.toArray());
     }
 
     /**

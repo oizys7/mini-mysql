@@ -4,7 +4,7 @@ import com.minimysql.executor.operator.*;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.parser.Statement;
 import com.minimysql.storage.StorageEngine;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -34,13 +34,20 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("查询计划生成器测试")
 class ExecutionPlanTest {
 
+    private static final String TEST_DATA_DIR = "test_data_execution_plan";
+
     private StorageEngine storageEngine;
     private SQLParser parser;
 
     @BeforeEach
     void setUp() {
         // 创建StorageEngine (不使用元数据持久化)
-        storageEngine = new InnoDBStorageEngine(10, false);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建SQL解析器
         parser = new SQLParser();
@@ -165,7 +172,7 @@ class ExecutionPlanTest {
         Row row = table.selectByPrimaryKey(4);
         assertNotNull(row);
         assertEquals("David", row.getValue("name"));
-        assertEquals(40, row.getValue("age"));
+        assertEquals(40, row.getValue(0));
     }
 
     @Test
@@ -194,7 +201,7 @@ class ExecutionPlanTest {
         // 验证: 数据确实更新了
         Table table = storageEngine.getTable("users");
         Row row = table.selectByPrimaryKey(1);
-        assertEquals(26, row.getValue("age"));
+        assertEquals(26, row.getValue(0));
     }
 
     @Test
@@ -332,8 +339,8 @@ class ExecutionPlanTest {
     private void insertTestData() {
         Table table = storageEngine.getTable("users");
 
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 30}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 35}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 30}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 35}));
     }
 }

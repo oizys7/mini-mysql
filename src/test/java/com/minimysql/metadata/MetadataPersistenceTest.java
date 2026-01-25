@@ -88,9 +88,9 @@ public class MetadataPersistenceTest {
         Object[] values2 = {2, "Bob", 30};
         Object[] values3 = {3, "Charlie", 35};
 
-        table1.insertRow(new Row(columns, values1));
-        table1.insertRow(new Row(columns, values2));
-        table1.insertRow(new Row(columns, values3));
+        table1.insertRow(new Row(values1));
+        table1.insertRow(new Row(values2));
+        table1.insertRow(new Row(values3));
 
         // 4. 验证数据可以查询
         Row result1 = table1.selectByPrimaryKey(1);
@@ -143,7 +143,7 @@ public class MetadataPersistenceTest {
         // 插入多行数据
         for (int i = 1; i <= 10; i++) {
             Object[] values = {i, "Product" + i};
-            table.insertRow(new Row(columns, values));
+            table.insertRow(new Row(values));
         }
 
         // 全表扫描

@@ -352,6 +352,7 @@ public class SchemaManager {
             // 创建聚簇索引
             ClusteredIndex clusteredIndex = createClusteredIndexForTable(table, columns);
             table.setClusteredIndex(clusteredIndex);
+            clusteredIndex.setTable(table);
 
             // 强制保存索引的PageManager元数据
             // 确保重启后能正确加载系统表
@@ -403,7 +404,8 @@ public class SchemaManager {
                 indexPageManager
         );
 
-        clusteredIndex.setColumns(columns);
+        // clusteredIndex.setColumns() 已废弃,不再需要
+        // 列定义由 Table 持有,ClusteredIndex 通过 table 引用访问
         return clusteredIndex;
     }
 
@@ -601,6 +603,7 @@ public class SchemaManager {
             if (!columns.isEmpty()) {
                 ClusteredIndex clusteredIndex = innodbEngine.createClusteredIndex(table, 0); // 第一列为主键
                 table.setClusteredIndex(clusteredIndex);
+                clusteredIndex.setTable(table);
             }
         }
 
@@ -748,7 +751,7 @@ public class SchemaManager {
      */
     private void insertToSysTables(int tableId, String tableName) {
         Object[] values = {tableId, tableName};
-        Row row = new Row(SystemTables.getSysTablesColumns(), values);
+        Row row = new Row(values);
         sysTablesTable.insertRow(row);
     }
 
@@ -771,7 +774,7 @@ public class SchemaManager {
                 nullable,
                 position
         };
-        Row row = new Row(SystemTables.getSysColumnsColumns(), values);
+        Row row = new Row(values);
         sysColumnsTable.insertRow(row);
     }
 

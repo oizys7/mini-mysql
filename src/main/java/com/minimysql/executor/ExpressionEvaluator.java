@@ -140,8 +140,21 @@ public class ExpressionEvaluator {
         String columnName = expr.getColumnName();
 
         try {
+            // 从 columns 中查找列索引
+            int columnIndex = -1;
+            for (int i = 0; i < columns.size(); i++) {
+                if (columns.get(i).getName().equalsIgnoreCase(columnName)) {
+                    columnIndex = i;
+                    break;
+                }
+            }
+
+            if (columnIndex < 0) {
+                throw new EvaluationException("Column not found: " + columnName);
+            }
+
             // 从Row中获取列值
-            return row.getValue(columnName);
+            return row.getValue(columnIndex);
         } catch (IllegalArgumentException e) {
             throw new EvaluationException("Column not found: " + columnName, e);
         }

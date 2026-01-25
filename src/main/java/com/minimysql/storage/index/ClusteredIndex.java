@@ -2,45 +2,63 @@ package com.minimysql.storage.index;
 
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.page.PageManager;
-import com.minimysql.storage.table.Column;
+import com.minimysql.storage.table.RecordSerializer;
 import com.minimysql.storage.table.Row;
+import com.minimysql.storage.table.Table;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * ClusteredIndex - 聚簇索引
  *
- * 聚簇索引是主键索引,数据和索引存储在一起。
- * InnoDB中,表数据就是按照聚簇索引组织的。
+ * <p>在 InnoDB 中，聚簇索引就是表本身。
  *
- * MySQL InnoDB对应关系:
- * - ClusteredIndex → InnoDB的表数据组织方式
- * - 主键 → 聚簇索引键
- * - Row → 实际表行数据
- * - 叶子节点value → Row对象(完整行数据)
+ * <p>MySQL InnoDB 对应关系:
+ * <ul>
+ *   <li>ClusteredIndex → InnoDB 的表数据组织方式</li>
+ *   <li>主键 (Primary Key) → 聚簇索引键</li>
+ *   <li>Row (逻辑行) → Logical Row</li>
+ *   <li>Record (物理记录) → Physical Record (存储在 B+ 树叶子节点)</li>
+ * </ul>
  *
- * 核心特性:
- * - 每个表只能有一个聚簇索引(通常是主键)
- * - 数据按主键顺序物理存储
- * - 范围查询快(数据在叶子节点连续存储)
- * - 主键查询最快(直接定位到数据行)
- * - 插入性能依赖主键顺序(顺序插入最优)
+ * <p>核心特性:
+ * <ul>
+ *   <li>每个表只能有一个聚簇索引 (通常是主键)</li>
+ *   <li>数据按主键顺序物理存储</li>
+ *   <li>范围查询快 (数据在叶子节点连续存储)</li>
+ *   <li>主键查询最快 (直接定位到数据行)</li>
+ *   <li>插入性能依赖主键顺序 (顺序插入最优)</li>
+ * </ul>
  *
- * 与二级索引的区别:
- * - 聚簇索引:叶子节点存储完整Row数据
- * - 二级索引:叶子节点存储主键值(需要回表查询)
+ * <p>与二级索引的区别:
+ * <ul>
+ *   <li>聚簇索引:叶子节点存储完整行数据 (Physical Record)</li>
+ *   <li>二级索引:叶子节点存储主键值 (需要回表查询)</li>
+ * </ul>
  *
- * 设计原则:
- * - 聚簇索引键 = 主键列
- * - B+树叶子节点value = Row序列化数据
- * - 支持主键去重(插入前检查是否存在)
+ * <p>设计原则 (重构后):
+ * <ul>
+ *   <li>聚簇索引键 = 主键列</li>
+ *   <li>B+ 树叶子节点 value = Physical Record (字节数组)</li>
+ *   <li>使用 RecordSerializer 进行逻辑 Row 和物理 Record 的转换</li>
+ *   <li>支持主键去重 (插入前检查是否存在)</li>
+ * </ul>
  *
- * "Good taste": 聚簇索引就是表数据,表就是聚簇索引,两者不可分割
+ * <p>"Good taste": 聚簇索引就是表数据，表就是聚簇索引，两者不可分割
  *
- * 性能优化建议(MySQL兼容):
- * - 主键尽量短(INT优于BIGINT,VARCHAR尽量短)
- * - 主键尽量顺序递增(AUTO_INCREMENT)
- * - 避免随机主键(如UUID),会导致页分裂
+ * <p>参考文档:
+ * <ul>
+ *   <li>https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html</li>
+ *   <li>https://dev.mysql.com/doc/refman/8.0/en/clustered-index.html</li>
+ * </ul>
+ *
+ * <p>性能优化建议 (MySQL 兼容):
+ * <ul>
+ *   <li>主键尽量短 (INT 优于 BIGINT，VARCHAR 尽量短)</li>
+ *   <li>主键尽量顺序递增 (AUTO_INCREMENT)</li>
+ *   <li>避免随机主键 (如 UUID)，会导致页分裂</li>
+ * </ul>
  */
 public class ClusteredIndex extends BPlusTree {
 
@@ -50,8 +68,8 @@ public class ClusteredIndex extends BPlusTree {
     /** 主键列在Row中的索引 */
     private final int primaryKeyIndex;
 
-    /** 列定义(用于Row序列化和反序列化) */
-    private List<Column> columns;
+    /** 表引用 (用于获取列定义和序列化/反序列化) */
+    private Table table;
 
     /**
      * 创建聚簇索引
@@ -82,52 +100,80 @@ public class ClusteredIndex extends BPlusTree {
     }
 
     /**
-     * 设置列定义
+     * 设置表引用
      *
-     * @param columns 列定义列表
+     * @param table 表对象
      */
-    public void setColumns(List<Column> columns) {
-        this.columns = columns;
+    public void setTable(Table table) {
+        this.table = table;
     }
 
     /**
-     * 获取列定义
+     * 获取表引用
      *
-     * @return 列定义列表
+     * @return 表对象
      */
-    public List<Column> getColumns() {
-        return columns;
+    public Table getTable() {
+        return table;
     }
 
     /**
      * 插入行到聚簇索引
      *
-     * @param row 行数据
+     * <p>流程:
+     * <ol>
+     *   <li>提取主键值</li>
+     *   <li>使用 RecordSerializer 将逻辑 Row 序列化为物理 Record</li>
+     *   <li>插入到 B+ 树: key=主键, value=物理记录</li>
+     * </ol>
+     *
+     * @param row 逻辑行数据
+     * @throws IllegalArgumentException 如果主键为 NULL
+     * @throws IllegalStateException  如果 Table 未设置
      */
     public void insertRow(Row row) {
+        if (table == null) {
+            throw new IllegalStateException("Table not set for ClusteredIndex");
+        }
+
         Object primaryKeyValue = row.getValue(primaryKeyIndex);
         if (primaryKeyValue == null) {
             throw new IllegalArgumentException("Primary key cannot be NULL");
         }
 
+        // Logical Row → Physical Record
+        byte[] physicalRecord = RecordSerializer.serialize(row, table.getColumns());
+
+        // 插入到 B+ 树
         int key = hashKey(primaryKeyValue);
-        byte[] rowBytes = row.toBytes();
-        insert(key, rowBytes);
+        insert(key, physicalRecord);
     }
 
     /**
      * 根据主键查询行
      *
+     * <p>流程:
+     * <ol>
+     *   <li>从 B+ 树查询物理记录</li>
+     *   <li>使用 RecordSerializer 将物理 Record 反序列化为逻辑 Row</li>
+     * </ol>
+     *
      * @param primaryKeyValue 主键值
-     * @return 行数据,不存在返回null
+     * @return 逻辑行数据，不存在返回 null
+     * @throws IllegalStateException 如果 Table 未设置
      */
     public Row selectByPrimaryKey(Object primaryKeyValue) {
+        if (table == null) {
+            throw new IllegalStateException("Table not set for ClusteredIndex");
+        }
+
         int key = hashKey(primaryKeyValue);
         Object value = search(key);
 
         if (value != null) {
-            byte[] rowBytes = (byte[]) value;
-            return Row.fromBytes(columns, rowBytes);
+            byte[] physicalRecord = (byte[]) value;
+            // Physical Record → Logical Row
+            return RecordSerializer.deserialize(physicalRecord, table.getColumns());
         }
         return null;
     }
@@ -135,23 +181,34 @@ public class ClusteredIndex extends BPlusTree {
     /**
      * 主键范围查询
      *
-     * 利用B+树叶子节点链表,高效支持范围查询。
+     * <p>利用 B+ 树叶子节点链表，高效支持范围查询。
      *
-     * @param startValue 起始主键值(包含)
-     * @param endValue 结束主键值(包含)
-     * @return 行列表
+     * <p>流程:
+     * <ol>
+     *   <li>在 B+ 树中范围查询 [startKey, endKey]</li>
+     *   <li>将所有物理记录反序列化为逻辑 Row</li>
+     * </ol>
+     *
+     * @param startValue 起始主键值 (包含)
+     * @param endValue   结束主键值 (包含)
+     * @return 逻辑行列表
+     * @throws IllegalStateException 如果 Table 未设置
      */
-    public java.util.List<Row> rangeSelect(Object startValue, Object endValue) {
+    public List<Row> rangeSelect(Object startValue, Object endValue) {
+        if (table == null) {
+            throw new IllegalStateException("Table not set for ClusteredIndex");
+        }
+
         int startKey = hashKey(startValue);
         int endKey = hashKey(endValue);
 
-        java.util.List<Object> values = rangeSearch(startKey, endKey);
-        java.util.List<Row> rows = new java.util.ArrayList<>();
+        List<Object> physicalRecords = rangeSearch(startKey, endKey);
+        List<Row> rows = new ArrayList<>();
 
-        for (Object value : values) {
-            // value是byte[],需要反序列化为Row
-            byte[] rowBytes = (byte[]) value;
-            rows.add(Row.fromBytes(columns, rowBytes));
+        for (Object record : physicalRecords) {
+            byte[] physicalRecord = (byte[]) record;
+            // Physical Record → Logical Row
+            rows.add(RecordSerializer.deserialize(physicalRecord, table.getColumns()));
         }
 
         return rows;
@@ -160,13 +217,45 @@ public class ClusteredIndex extends BPlusTree {
     /**
      * 检查主键是否存在
      *
-     * 用于主键唯一性约束。
+     * <p>用于主键唯一性约束。
      *
      * @param primaryKeyValue 主键值
-     * @return 存在返回true
+     * @return 存在返回 true
      */
     public boolean exists(Object primaryKeyValue) {
         return selectByPrimaryKey(primaryKeyValue) != null;
+    }
+
+    /**
+     * 获取所有行 (全表扫描)
+     *
+     * <p>遍历聚簇索引的所有叶子节点，返回所有行数据。
+     * 时间复杂度 O(N)，性能较差，应尽量避免使用。
+     *
+     * <p>MySQL InnoDB 对应:
+     * <ul>
+     *   <li>全表扫描 → 扫描聚簇索引的所有叶子节点</li>
+     *   <li>顺序 I/O → 叶子节点通过链表连接，顺序读取效率高</li>
+     * </ul>
+     *
+     * @return 所有逻辑行数据
+     * @throws IllegalStateException 如果 Table 未设置
+     */
+    public List<Row> getAllRows() {
+        if (table == null) {
+            throw new IllegalStateException("Table not set for ClusteredIndex");
+        }
+
+        List<Object> physicalRecords = getAll();
+        List<Row> rows = new ArrayList<>();
+
+        for (Object record : physicalRecords) {
+            byte[] physicalRecord = (byte[]) record;
+            // Physical Record → Logical Row
+            rows.add(RecordSerializer.deserialize(physicalRecord, table.getColumns()));
+        }
+
+        return rows;
     }
 
     /**

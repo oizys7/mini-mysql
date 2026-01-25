@@ -7,8 +7,8 @@ import com.minimysql.parser.expressions.BinaryExpression;
 import com.minimysql.parser.expressions.ColumnExpression;
 import com.minimysql.parser.expressions.LiteralExpression;
 import com.minimysql.parser.expressions.OperatorEnum;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -39,8 +39,7 @@ class FilterOperatorTest {
 
     private static final String TEST_DATA_DIR = "test_data_filter_operator";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;
     private Table table;
     private ScanOperator scan;
 
@@ -50,10 +49,14 @@ class FilterOperatorTest {
         cleanupTestData();
 
         // 创建BufferPool
-        bufferPool = new BufferPool(10);
 
         // 创建StorageEngine
-        storageEngine = new InnoDBStorageEngine(10, false);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建表: users(id INT, name VARCHAR(100), age INT)
         List<Column> columns = Arrays.asList(
@@ -68,11 +71,11 @@ class FilterOperatorTest {
         table = storageEngine.getTable("users");
 
         // 插入测试数据
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 17}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 30}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{4, "David", 15}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{5, "Eve", 35}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 17}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 30}));
+        table.insertRow(new Row(new Object[]{4, "David", 15}));
+        table.insertRow(new Row(new Object[]{5, "Eve", 35}));
 
         // 创建ScanOperator
         scan = new ScanOperator(table);
@@ -104,15 +107,15 @@ class FilterOperatorTest {
         // 应该返回3行: Alice(25), Charlie(30), Eve(35)
         assertTrue(filter.hasNext());
         Row row1 = filter.next();
-        assertEquals(25, row1.getValue("age"));
+        assertEquals(25, row1.getValue(0));
 
         assertTrue(filter.hasNext());
         Row row2 = filter.next();
-        assertEquals(30, row2.getValue("age"));
+        assertEquals(30, row2.getValue(0));
 
         assertTrue(filter.hasNext());
         Row row3 = filter.next();
-        assertEquals(35, row3.getValue("age"));
+        assertEquals(35, row3.getValue(0));
 
         assertFalse(filter.hasNext());
     }
@@ -140,7 +143,7 @@ class FilterOperatorTest {
         // 应该只返回1行: Alice(25)
         assertTrue(filter.hasNext());
         Row row = filter.next();
-        assertEquals(25, row.getValue("age"));
+        assertEquals(25, row.getValue(0));
         assertEquals("Alice", row.getValue("name"));
 
         assertFalse(filter.hasNext());
@@ -197,7 +200,7 @@ class FilterOperatorTest {
 
         assertTrue(filter.hasNext());
         Row row = filter.next();
-        assertEquals(25, row.getValue("age"));
+        assertEquals(25, row.getValue(0));
         assertEquals("Alice", row.getValue("name"));
 
         assertFalse(filter.hasNext());
@@ -228,7 +231,7 @@ class FilterOperatorTest {
         while (filter.hasNext()) {
             Row row = filter.next();
             count++;
-            assertTrue((Integer) row.getValue("age") < 18 || (Integer) row.getValue("age") > 30);
+            assertTrue((Integer) row.getValue(0) < 18 || (Integer) row.getValue(0) > 30);
         }
 
         assertEquals(3, count);

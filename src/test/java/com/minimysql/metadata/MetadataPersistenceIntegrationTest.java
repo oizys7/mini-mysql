@@ -172,11 +172,11 @@ public class MetadataPersistenceIntegrationTest {
 
         // 插入数据
         Object[] values1 = {1, "Alice", 25};
-        Row row1 = new Row(columns, values1);
+        Row row1 = new Row(values1);
         table.insertRow(row1);
 
         Object[] values2 = {2, "Bob", 30};
-        Row row2 = new Row(columns, values2);
+        Row row2 = new Row(values2);
         table.insertRow(row2);
 
         // 查询数据
@@ -266,7 +266,7 @@ public class MetadataPersistenceIntegrationTest {
         Table table = storageEngine.createTable("products", columns);
 
         Object[] values = {100, "Laptop"};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
         table.insertRow(row);
 
         // 关闭引擎

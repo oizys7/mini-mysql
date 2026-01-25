@@ -3,6 +3,7 @@ package com.minimysql.storage.page;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.BitSet;
@@ -161,7 +162,7 @@ public class PageManager {
             // 原子写入:先写临时文件,再重命名
             Path tempPath = Path.of(metaPath + ".tmp");
             Files.write(tempPath, data);
-            Files.move(tempPath, metaPath, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tempPath, metaPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to save page metadata: tableId=" + tableId, e);

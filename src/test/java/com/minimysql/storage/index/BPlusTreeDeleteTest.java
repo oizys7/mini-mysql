@@ -5,6 +5,7 @@ import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
+import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,11 +25,13 @@ import static org.junit.jupiter.api.Assertions.*;
  * 3. 节点合并
  * 4. 复杂场景
  */
+@DisplayName("BPlusTreeDeleteTest - B+树删除功能测试")
 public class BPlusTreeDeleteTest {
 
     private BufferPool bufferPool;
     private PageManager pageManager;
     private ClusteredIndex clusteredIndex;
+    private Table table; // 添加Table引用
 
     @BeforeEach
     public void setUp() {
@@ -46,6 +49,9 @@ public class BPlusTreeDeleteTest {
                 new Column("age", DataType.INT, false)
         );
 
+        // 创建测试表
+        table = new Table(uniqueTableId, "test_table", testColumns);
+
         // 创建聚簇索引(主键是id列,索引为0)
         clusteredIndex = new ClusteredIndex(
                 uniqueTableId, // tableId
@@ -55,8 +61,8 @@ public class BPlusTreeDeleteTest {
                 pageManager
         );
 
-        // 设置列定义
-        clusteredIndex.setColumns(testColumns);
+        // 关键修复: 设置Table到ClusteredIndex
+        clusteredIndex.setTable(table);
     }
 
     @AfterEach
@@ -70,7 +76,7 @@ public class BPlusTreeDeleteTest {
     @DisplayName("删除单个键")
     public void testDeleteSingleKey() {
         // 创建行数据
-        Row row = new Row(clusteredIndex.getColumns(), new Object[]{1, "Alice", 25});
+        Row row = new Row( new Object[]{1, "Alice", 25});
 
         // 插入行
         clusteredIndex.insertRow(row);
@@ -94,7 +100,7 @@ public class BPlusTreeDeleteTest {
     public void testDeleteMultipleKeys() {
         // 插入多行
         for (int i = 1; i <= 10; i++) {
-            Row row = new Row(clusteredIndex.getColumns(), new Object[]{i, "User" + i, 20 + i});
+            Row row = new Row( new Object[]{i, "User" + i, 20 + i});
             clusteredIndex.insertRow(row);
         }
 
@@ -127,7 +133,7 @@ public class BPlusTreeDeleteTest {
     @DisplayName("删除不存在的键")
     public void testDeleteNonExistentKey() {
         // 插入一行
-        Row row = new Row(clusteredIndex.getColumns(), new Object[]{1, "Alice", 25});
+        Row row = new Row( new Object[]{1, "Alice", 25});
         clusteredIndex.insertRow(row);
 
         // 删除不存在的键（不应该抛异常）
@@ -142,8 +148,8 @@ public class BPlusTreeDeleteTest {
     @DisplayName("删除后重新插入")
     public void testDeleteAndReinsert() {
         // 插入行
-        Row row1 = new Row(clusteredIndex.getColumns(), new Object[]{1, "Alice", 25});
-        Row row2 = new Row(clusteredIndex.getColumns(), new Object[]{2, "Bob", 30});
+        Row row1 = new Row( new Object[]{1, "Alice", 25});
+        Row row2 = new Row( new Object[]{2, "Bob", 30});
         clusteredIndex.insertRow(row1);
         clusteredIndex.insertRow(row2);
 
@@ -152,7 +158,7 @@ public class BPlusTreeDeleteTest {
         assertNull(clusteredIndex.selectByPrimaryKey(1));
 
         // 重新插入
-        Row newRow = new Row(clusteredIndex.getColumns(), new Object[]{1, "New Alice", 26});
+        Row newRow = new Row( new Object[]{1, "New Alice", 26});
         clusteredIndex.insertRow(newRow);
 
         Row found = clusteredIndex.selectByPrimaryKey(1);
@@ -172,7 +178,7 @@ public class BPlusTreeDeleteTest {
         // 插入多行
         int numRows = 20;
         for (int i = 1; i <= numRows; i++) {
-            Row row = new Row(clusteredIndex.getColumns(), new Object[]{i, "User" + i, 20 + i});
+            Row row = new Row( new Object[]{i, "User" + i, 20 + i});
             clusteredIndex.insertRow(row);
         }
 
@@ -183,7 +189,7 @@ public class BPlusTreeDeleteTest {
         }
 
         // 验证树仍然可以工作
-        Row newRow = new Row(clusteredIndex.getColumns(), new Object[]{100, "New User", 30});
+        Row newRow = new Row( new Object[]{100, "New User", 30});
         clusteredIndex.insertRow(newRow);
 
         Row found = clusteredIndex.selectByPrimaryKey(100);
@@ -196,7 +202,7 @@ public class BPlusTreeDeleteTest {
     public void testRangeQueryAfterDelete() {
         // 插入1-50
         for (int i = 1; i <= 50; i++) {
-            Row row = new Row(clusteredIndex.getColumns(), new Object[]{i, "User" + i, 20 + i});
+            Row row = new Row( new Object[]{i, "User" + i, 20 + i});
             clusteredIndex.insertRow(row);
         }
 
@@ -218,7 +224,7 @@ public class BPlusTreeDeleteTest {
     public void testSequentialDelete() {
         // 插入数据
         for (int i = 1; i <= 50; i++) {
-            Row row = new Row(clusteredIndex.getColumns(), new Object[]{i, "User" + i, 20 + i});
+            Row row = new Row( new Object[]{i, "User" + i, 20 + i});
             clusteredIndex.insertRow(row);
         }
 

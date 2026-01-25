@@ -83,8 +83,8 @@ class MetadataPersistenceTest {
         assertEquals(3, table1.getColumnCount());
 
         // 第二步：插入数据
-        table1.insertRow(new Row(table1.getColumns(), new Object[]{1, "Alice", 25}));
-        table1.insertRow(new Row(table1.getColumns(), new Object[]{2, "Bob", 30}));
+        table1.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        table1.insertRow(new Row(new Object[]{2, "Bob", 30}));
 
         // 第三步：关闭存储引擎，模拟重启
         storageEngine.close();
@@ -137,10 +137,10 @@ class MetadataPersistenceTest {
 
         // 插入一些数据
         Table users = storageEngine.getTable("users");
-        users.insertRow(new Row(users.getColumns(), new Object[]{1, "Alice"}));
+        users.insertRow(new Row(new Object[]{1, "Alice"}));
 
         Table products = storageEngine.getTable("products");
-        products.insertRow(new Row(products.getColumns(), new Object[]{1, "Laptop", 1000}));
+        products.insertRow(new Row(new Object[]{1, "Laptop", 1000}));
 
         // 重启
         storageEngine.close();
@@ -204,7 +204,7 @@ class MetadataPersistenceTest {
         ));
 
         Table users1 = storageEngine.getTable("users");
-        users1.insertRow(new Row(users1.getColumns(), new Object[]{1, "Alice"}));
+        users1.insertRow(new Row(new Object[]{1, "Alice"}));
 
         // 重启
         storageEngine.close();
@@ -215,7 +215,7 @@ class MetadataPersistenceTest {
         try {
             // 插入新数据
             Table users2 = newStorageEngine.getTable("users");
-            users2.insertRow(new Row(users2.getColumns(), new Object[]{2, "Bob"}));
+            users2.insertRow(new Row(new Object[]{2, "Bob"}));
 
             // 验证两行数据都存在
             Row row1 = users2.selectByPrimaryKey(1);

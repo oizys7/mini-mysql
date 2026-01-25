@@ -218,6 +218,8 @@ public class InnoDBStorageEngine implements StorageEngine {
 
         // 将聚簇索引设置到表中
         table.setClusteredIndex(clusteredIndex);
+        // 将表引用设置到聚簇索引中(用于序列化/反序列化)
+        clusteredIndex.setTable(table);
 
         // 将表添加到映射
         tables.put(tableName, table);
@@ -249,8 +251,7 @@ public class InnoDBStorageEngine implements StorageEngine {
                 indexPageManager
         );
 
-        // 设置列定义(用于Row序列化)
-        clusteredIndex.setColumns(columns);
+        // 列定义已废弃,ClusteredIndex 通过 Table 引用进行序列化
 
         return clusteredIndex;
     }

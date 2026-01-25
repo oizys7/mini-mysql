@@ -4,8 +4,8 @@ import com.minimysql.executor.operator.ProjectOperator;
 import com.minimysql.executor.operator.ScanOperator;
 import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.ColumnExpression;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -35,8 +35,7 @@ class ProjectOperatorTest {
 
     private static final String TEST_DATA_DIR = "test_data_project_operator";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;
     private Table table;
     private ScanOperator scan;
 
@@ -46,10 +45,14 @@ class ProjectOperatorTest {
         cleanupTestData();
 
         // 创建BufferPool
-        bufferPool = new BufferPool(10);
 
         // 创建StorageEngine
-        storageEngine = new InnoDBStorageEngine(10, false);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建表: users(id INT, name VARCHAR(100), age INT, salary DOUBLE)
         List<Column> columns = Arrays.asList(
@@ -65,9 +68,9 @@ class ProjectOperatorTest {
         table = storageEngine.getTable("users");
 
         // 插入测试数据
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25, 5000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 30, 6000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 35, 7000.0}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25, 5000.0}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 30, 6000.0}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 35, 7000.0}));
 
         // 创建ScanOperator
         scan = new ScanOperator(table);

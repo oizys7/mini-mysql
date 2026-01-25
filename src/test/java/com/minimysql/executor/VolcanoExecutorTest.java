@@ -3,8 +3,8 @@ package com.minimysql.executor;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.parser.Statement;
 import com.minimysql.result.QueryResult;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -29,14 +29,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 执行带WHERE条件的查询
  * - 执行复杂查询
  * - 错误处理(表不存在)
+ *
+ * 重构说明:
+ * - 使用StorageEngine接口而不是具体实现
+ * - 通过StorageEngineFactory创建引擎实例（策略模式）
+ * - 支持未来切换不同的存储引擎实现
  */
 @DisplayName("火山模型执行器测试")
 class VolcanoExecutorTest {
 
     private static final String TEST_DATA_DIR = "test_data_volcano_executor";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;  // 改为接口类型
     private VolcanoExecutor executor;
     private SQLParser parser;
 
@@ -45,11 +49,13 @@ class VolcanoExecutorTest {
         // 清理测试数据
         cleanupTestData();
 
-        // 创建BufferPool
-        bufferPool = new BufferPool(10);
-
-        // 创建StorageEngine
-        storageEngine = new InnoDBStorageEngine(10, false);
+        // 创建StorageEngine（使用工厂模式）
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建Executor
         executor = new VolcanoExecutor(storageEngine);
@@ -69,11 +75,11 @@ class VolcanoExecutorTest {
 
         // 获取表对象并插入测试数据
         Table table = storageEngine.getTable("users");
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25, 5000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 17, 3000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 30, 6000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{4, "David", 15, 2000.0}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{5, "Eve", 35, 7000.0}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25, 5000.0}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 17, 3000.0}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 30, 6000.0}));
+        table.insertRow(new Row(new Object[]{4, "David", 15, 2000.0}));
+        table.insertRow(new Row(new Object[]{5, "Eve", 35, 7000.0}));
     }
 
     @AfterEach
@@ -153,7 +159,7 @@ class VolcanoExecutorTest {
         // 验证所有行的age都 > 18
         List<Row> rows = result.getRows();
         for (Row row : rows) {
-            assertTrue((Integer) row.getValue("age") > 18);
+            assertTrue((Integer) row.getValue(0) > 18);
         }
 
         // 验证具体数据

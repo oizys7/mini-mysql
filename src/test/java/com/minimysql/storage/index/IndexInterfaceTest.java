@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 2. ClusteredIndex和SecondaryIndex可以向上转型为Index
  * 3. BufferPool的脏页刷新bug已修复
  */
+@DisplayName("IndexInterfaceTest - Index接口测试")
 class IndexInterfaceTest {
 
     private BufferPool bufferPool;
@@ -86,7 +87,7 @@ class IndexInterfaceTest {
         ClusteredIndex clusteredIndex = new ClusteredIndex(
                 1, "id", 0, bufferPool, pageManager
         );
-        clusteredIndex.setColumns(java.util.List.of());
+        java.util.List.of(); // clusteredIndex.setColumns 已废弃(java.util.List.of());
 
         // 验证可以向上转型为Index接口
         Index index = clusteredIndex;
@@ -107,7 +108,7 @@ class IndexInterfaceTest {
         ClusteredIndex clusteredIndex = new ClusteredIndex(
                 1, "id", 0, bufferPool, pageManager1
         );
-        clusteredIndex.setColumns(java.util.List.of());
+        java.util.List.of(); // clusteredIndex.setColumns 已废弃(java.util.List.of());
 
         // 使用Index接口类型引用
         Index index1 = clusteredIndex;

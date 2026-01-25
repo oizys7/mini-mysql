@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 空闲页重用
  * - 边界情况处理
  */
+@DisplayName("PageManager - 页分配器测试")
 class PageManagerTest {
 
     private PageManager manager;

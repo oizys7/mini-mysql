@@ -5,6 +5,7 @@ import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
+import com.minimysql.storage.table.Table;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -22,11 +23,13 @@ import static org.junit.jupiter.api.Assertions.*;
  * 测试聚簇索引和二级索引的核心功能。
  * 注意:由于BPlusTree的持久化尚未完整实现,这些测试主要验证内存操作。
  */
+@DisplayName("BPlusTreeTest - B+树索引单元测试")
 class BPlusTreeTest {
 
     private BufferPool bufferPool;
     private PageManager pageManager;
     private ClusteredIndex clusteredIndex;
+    private Table table; // 添加Table引用
 
     @BeforeEach
     void setUp() {
@@ -41,6 +44,9 @@ class BPlusTreeTest {
                 new Column("age", DataType.INT, false)
         );
 
+        // 创建测试表
+        table = new Table(100, "test_table", testColumns);
+
         // 创建聚簇索引(主键是id列,索引为0)
         clusteredIndex = new ClusteredIndex(
                 100, // tableId
@@ -50,8 +56,8 @@ class BPlusTreeTest {
                 pageManager
         );
 
-        // 设置列定义(用于Row序列化/反序列化)
-        clusteredIndex.setColumns(testColumns);
+        // 关键修复: 设置Table到ClusteredIndex
+        clusteredIndex.setTable(table);
     }
 
     @AfterEach
@@ -80,7 +86,7 @@ class BPlusTreeTest {
 
         // 创建行数据
         Object[] values = {1, "Alice", 25};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
 
         // 插入到聚簇索引
         clusteredIndex.insertRow(row);
@@ -106,7 +112,7 @@ class BPlusTreeTest {
         // 插入多行
         for (int i = 1; i <= 10; i++) {
             Object[] values = {i, "User" + i, 20 + i};
-            Row row = new Row(columns, values);
+            Row row = new Row(values);
             clusteredIndex.insertRow(row);
         }
 
@@ -128,11 +134,14 @@ class BPlusTreeTest {
                 new Column("name", DataType.VARCHAR, 50, true)
         );
 
-        // 主键为NULL,Row构造时就会抛出异常
+        // Row现在允许NULL，所以这个测试需要调整
+        // 主键为NULL的Row可以创建，但在insertRow时会抛出异常
         Object[] values = {null, "Alice"};
+        Row row = new Row(values);
 
+        // 插入主键为NULL的行应该抛出异常
         assertThrows(IllegalArgumentException.class, () -> {
-            Row row = new Row(columns, values);
+            clusteredIndex.insertRow(row);
         });
     }
 
@@ -148,7 +157,7 @@ class BPlusTreeTest {
     void testExists() {
         // 使用setUp()中定义的列结构(3列:id, name, age)
         Object[] values = {100, "TestUser", 25};
-        Row row = new Row(clusteredIndex.getColumns(), values);
+        Row row = new Row( values);
         clusteredIndex.insertRow(row);
 
         // 检查存在性
@@ -196,9 +205,9 @@ class BPlusTreeTest {
                 pageManager
         );
 
-        // 插入到聚簇索引
-        Object[] values1 = {1, "Alice"};
-        Row row1 = new Row(columns, values1);
+        // 插入到聚簇索引 (注意：必须使用table中定义的3列)
+        Object[] values1 = {1, "Alice", 25};  // 添加第三列age
+        Row row1 = new Row(values1);
         clusteredIndex.insertRow(row1);
 
         // 插入到二级索引
@@ -275,7 +284,7 @@ class BPlusTreeTest {
         // 插入多行
         for (int i = 1; i <= 10; i++) {
             Object[] values = {i, "User" + i, 20 + i};
-            Row row = new Row(clusteredIndex.getColumns(), values);
+            Row row = new Row( values);
             clusteredIndex.insertRow(row);
         }
 
@@ -303,11 +312,12 @@ class BPlusTreeTest {
                 pageManager
         );
 
-        // 设置列定义(用于Row序列化/反序列化)
-        varcharIndex.setColumns(columns);
+        // 创建Table并设置到ClusteredIndex (关键修复!)
+        Table varcharTable = new Table(101, "varchar_test_table", columns);
+        varcharIndex.setTable(varcharTable);
 
         Object[] values = {"550e8400-e29b-41d4-a716-446655440000", "Alice"};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
 
         varcharIndex.insertRow(row);
 
@@ -327,10 +337,10 @@ class BPlusTreeTest {
 
         int initialHeight = clusteredIndex.getHeight();
 
-        // 插入数据,触发节点分裂（先用较小的数据量测试）
+        // 插入数据,触发节点分裂（必须使用table定义的3列）
         for (int i = 1; i <= 100; i++) {
-            Object[] values = {i, "Data" + i};
-            Row row = new Row(columns, values);
+            Object[] values = {i, "Data" + i, 100 + i};  // 添加第三列
+            Row row = new Row(values);
             clusteredIndex.insertRow(row);
         }
 

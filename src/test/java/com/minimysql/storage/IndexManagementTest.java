@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 3. 更新行数据 (updateRow)
  * 4. 删除行数据 (deleteRow)
  */
+@DisplayName("IndexManagementTest - 索引管理和CRUD测试")
 class IndexManagementTest {
 
     private InnoDBStorageEngine storageEngine;
@@ -234,11 +235,11 @@ class IndexManagementTest {
 
         // 插入数据
         Object[] values1 = {1, "Alice"};
-        Row row1 = new Row(columns, values1);
+        Row row1 = new Row(values1);
         users.insertRow(row1);
 
         Object[] values2 = {2, "Bob"};
-        Row row2 = new Row(columns, values2);
+        Row row2 = new Row(values2);
         users.insertRow(row2);
 
         // 验证初始数据
@@ -247,7 +248,7 @@ class IndexManagementTest {
 
         // 更新数据
         Object[] updatedValues = {1, "Alice Updated"};
-        Row updatedRow = new Row(columns, updatedValues);
+        Row updatedRow = new Row(updatedValues);
         int affected = users.updateRow(1, updatedRow);
 
         // 验证更新成功
@@ -275,7 +276,7 @@ class IndexManagementTest {
 
         // 更新不存在的行
         Object[] values = {999, "Nonexistent"};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
         int affected = users.updateRow(999, row);
 
         // 验证返回0
@@ -297,11 +298,11 @@ class IndexManagementTest {
 
         // 插入数据
         Object[] values1 = {1, "Alice"};
-        Row row1 = new Row(columns, values1);
+        Row row1 = new Row(values1);
         users.insertRow(row1);
 
         Object[] values2 = {2, "Bob"};
-        Row row2 = new Row(columns, values2);
+        Row row2 = new Row(values2);
         users.insertRow(row2);
 
         // 验证数据存在
@@ -352,7 +353,7 @@ class IndexManagementTest {
 
         // CREATE: 插入数据
         Object[] values = {1, "Alice", 25};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
         users.insertRow(row);
 
         // READ: 查询数据
@@ -363,7 +364,7 @@ class IndexManagementTest {
 
         // UPDATE: 更新数据
         Object[] updatedValues = {1, "Alice Updated", 26};
-        Row updated = new Row(columns, updatedValues);
+        Row updated = new Row(updatedValues);
         users.updateRow(1, updated);
 
         Row afterUpdate = users.selectByPrimaryKey(1);

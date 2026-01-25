@@ -8,42 +8,49 @@ import com.minimysql.storage.page.DataPage;
 import com.minimysql.storage.page.PageManager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Table - 表定义
+ * Table - 表定义 (Table Metadata)
  *
- * Table定义了表的结构和基本操作,是存储层的核心接口。
+ * <p>Table 定义了表的结构和元数据，对应 MySQL 的表定义 (Information Schema)。
  *
- * 核心功能:
- * 1. 表结构定义:列定义、表名、表ID
- * 2. 行数据插入:将Row存储到DataPage中
- * 3. 页管理:通过PageManager分配页号
- * 4. 缓存管理:使用全局共享的BufferPool
+ * <p>核心功能:
+ * <ul>
+ *   <li>表结构定义:列定义、表名、表ID</li>
+ *   <li>索引管理:聚簇索引、二级索引</li>
+ *   <li>行数据操作:插入、查询、更新、删除 (委托给 ClusteredIndex)</li>
+ *   <li>页管理:通过 PageManager 分配页号</li>
+ *   <li>缓存管理:使用全局共享的 BufferPool</li>
+ * </ul>
  *
- * 设计原则(MySQL兼容):
- * - 表结构不可变(创建后列定义不可修改)
- * - BufferPool全局共享,所有表共用(符合MySQL InnoDB设计)
- * - PageManager每表独立(管理表空间的页分配)
- * - 插入操作自动分配新页,页满时分配新页
- * - 暂不支持主键约束(后续扩展)
+ * <p>设计原则 (MySQL 兼容):
+ * <ul>
+ *   <li>表结构不可变 (创建后列定义不可修改)</li>
+ *   <li>BufferPool 全局共享，所有表共用 (符合 MySQL InnoDB 设计)</li>
+ *   <li>PageManager 每表独立 (管理表空间的页分配)</li>
+ *   <li>插入操作自动分配新页，页满时分配新页</li>
+ *   <li>聚簇索引 = 表 (Clustered Index = Table)</li>
+ * </ul>
  *
- * MySQL InnoDB对应关系:
- * - Table → InnoDB Table
- * - BufferPool → InnoDB Buffer Pool(全局共享)
- * - PageManager → InnoDB Table Space(每表独立)
- * - DataPage → InnoDB Data Page
+ * <p>MySQL InnoDB 对应关系:
+ * <ul>
+ *   <li>Table → InnoDB Table Definition (元数据)</li>
+ *   <li>BufferPool → InnoDB Buffer Pool (全局共享)</li>
+ *   <li>PageManager → InnoDB Tablespace (每表独立)</li>
+ *   <li>DataPage → InnoDB Data Page</li>
+ *   <li>ClusteredIndex → InnoDB Clustered Index (表数据组织)</li>
+ * </ul>
  *
- * 使用模式:
+ * <p>使用模式:
  * <pre>
- * // 创建全局BufferPool(所有表共享)
+ * // 创建全局 BufferPool (所有表共享)
  * BufferPool globalBufferPool = new BufferPool(1024);
  *
  * // 创建表
- * List<Column> columns = Arrays.asList(
+ * List&lt;Column&gt; columns = Arrays.asList(
  *     new Column("id", DataType.INT, false),
  *     new Column("name", DataType.VARCHAR, 100, true),
  *     new Column("age", DataType.INT, false)
@@ -54,15 +61,18 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * // 插入行
  * Object[] values = {1, "Alice", 25};
- * Row row = new Row(columns, values);
+ * Row row = new Row(values);
  * table.insertRow(row);
  * </pre>
  *
- * 设计哲学:
- * - "Good taste": 表结构清晰,没有隐藏的复杂性
- * - 实用主义: 先实现基本功能,暂不支持删除和更新
- * - MySQL原理: BufferPool全局共享,与MySQL InnoDB一致
- * - 简洁优先: 不实现复杂的页分裂、合并等
+ * <p>设计哲学 (重构后):
+ * <ul>
+ *   <li>"Good taste": 表结构清晰，没有隐藏的复杂性</li>
+ *   <li>职责单一: Table 只管理元数据，不处理物理序列化</li>
+ *   <li>物理存储委托: 序列化/反序列化由 RecordSerializer 处理</li>
+ *   <li>MySQL 原理: BufferPool 全局共享，与 MySQL InnoDB 一致</li>
+ *   <li>简洁优先: 不实现复杂的页分裂、合并等</li>
+ * </ul>
  */
 public class Table {
 
@@ -163,6 +173,8 @@ public class Table {
      * - 不在这里刷新脏页(避免跨表刷新其他表的脏页)
      * - 由StorageEngine统一管理所有表的脏页刷新
      * - 简单直接,没有特殊情况
+     *
+     * TODO 检查关闭表的逻辑是否正确
      */
     public void close() {
         if (!opened) {
@@ -181,17 +193,25 @@ public class Table {
     /**
      * 插入行
      *
-     * 将行数据插入到表中，同时更新聚簇索引和所有二级索引。
-     * 自动选择合适的页面，页满时分配新页。
+     * <p>将行数据插入到表中，同时更新聚簇索引和所有二级索引。
      *
-     * 设计原则(MySQL兼容):
-     * - 先插入聚簇索引(主键索引)
-     * - 再插入所有二级索引
-     * - 最后写入DataPage
-     * - 保证索引和数据一致性
+     * <p>设计原则 (MySQL 兼容):
+     * <ul>
+     *   <li>先插入聚簇索引 (主键索引) - 聚簇索引 = 表，数据存储在聚簇索引中</li>
+     *   <li>再插入所有二级索引</li>
+     *   <li>不再写入 DataPage (聚簇索引已经负责存储)</li>
+     *   <li>保证索引和数据一致性</li>
+     * </ul>
      *
-     * @param row 行数据
-     * @return 插入的页号
+     * <p>重构说明:
+     * <ul>
+     *   <li>移除了对 DataPage 的写入 (避免重复存储)</li>
+     *   <li>聚簇索引已经负责物理存储 (使用 RecordSerializer 序列化)</li>
+     *   <li>DataPage 将在未来用于溢出页 (大字段溢出)</li>
+     * </ul>
+     *
+     * @param row 逻辑行数据
+     * @return 插入的页号 (来自聚簇索引)
      */
     public int insertRow(Row row) {
         if (!opened) {
@@ -202,7 +222,11 @@ public class Table {
             throw new IllegalArgumentException("Row cannot be null");
         }
 
-        // 1. 插入到聚簇索引(主键索引)
+        // ✅ 重构后: 在Table中验证行数据 (Row不持有Column引用,无法验证)
+        validateRow(row);
+
+        // 1. 插入到聚簇索引 (主键索引)
+        // 聚簇索引 = 表，数据存储在聚簇索引中
         if (clusteredIndex != null) {
             clusteredIndex.insertRow(row);
         }
@@ -216,7 +240,7 @@ public class Table {
                 int indexColumnIndex = columns.indexOf(indexColumn);
                 Object indexColumnValue = row.getValue(indexColumnIndex);
 
-                // 获取主键值(用于回表)
+                // 获取主键值 (用于回表)
                 int primaryKeyIndex = clusteredIndex.getPrimaryKeyIndex();
                 Object primaryKeyValue = row.getValue(primaryKeyIndex);
 
@@ -225,19 +249,45 @@ public class Table {
             }
         }
 
-        // 3. 序列化行数据并写入DataPage
-        byte[] rowData = row.toBytes();
+        // 重构设计: 不再写入 DataPage
+        // 原因: 聚簇索引已经负责物理存储 (通过 RecordSerializer 序列化)
+        // DataPage 将在未来用于溢出页 (大字段溢出)
 
-        // 尝试插入到当前页
-        int pageId = insertToCurrentPage(rowData);
+        return 0; // 返回值不再有意义 (数据存储在聚簇索引中)
+    }
 
-        // 如果当前页不存在或已满，分配新页
-        if (pageId == -1) {
-            pageId = allocateNewPage();
-            insertToPage(pageId, rowData);
+    /**
+     * 验证行数据是否符合表约束
+     *
+     * <p>重构后: 验证逻辑从Row移到Table,因为Row不持有Column引用
+     *
+     * @param row 行数据
+     * @throws IllegalArgumentException 如果行数据违反约束
+     */
+    private void validateRow(Row row) {
+        if (row.getColumnCount() != columns.size()) {
+            throw new IllegalArgumentException(
+                    "Row column count (" + row.getColumnCount() +
+                    ") does not match table column count (" + columns.size() + ")");
         }
 
-        return pageId;
+        // 验证每一列
+        for (int i = 0; i < columns.size(); i++) {
+            Column col = columns.get(i);
+            Object value = row.getValue(i);
+
+            // 使用Column的validate方法
+            if (!col.validate(value)) {
+                if (value == null) {
+                    throw new IllegalArgumentException(
+                            "Column '" + col.getName() + "' cannot be NULL");
+                } else {
+                    throw new IllegalArgumentException(
+                            "Column '" + col.getName() + "' value '" + value +
+                            "' does not match type " + col.getType());
+                }
+            }
+        }
     }
 
     /**
@@ -281,6 +331,24 @@ public class Table {
             }
         }
         return null;
+    }
+
+    /**
+     * 获取行中指定列的值
+     *
+     * <p>重构后推荐使用此方法替代已废弃的 Row.getValue(String)
+     *
+     * @param row       行数据
+     * @param columnName 列名
+     * @return 列值,如果列不存在返回null
+     */
+    public Object getRowValue(Row row, String columnName) {
+        Column col = getColumn(columnName);
+        if (col == null) {
+            return null;
+        }
+        int index = columns.indexOf(col);
+        return row.getValue(index);
     }
 
     /**
@@ -352,72 +420,9 @@ public class Table {
     }
 
     /**
-     * 尝试插入到当前页
-     *
-     * @param rowData 行数据
-     * @return 成功返回页号,失败返回-1
-     */
-    private int insertToCurrentPage(byte[] rowData) {
-        if (currentPageId < 0) {
-            return -1;
-        }
-
-        PageFrame frame = sharedBufferPool.getPage(tableId, currentPageId);
-        DataPage page = (DataPage) frame.getPage();
-
-        if (!page.hasFreeSpace(rowData.length)) {
-            return -1;
-        }
-
-        frame.pin();
-        try {
-            page.insertRow(rowData);
-            frame.markDirty();
-            return currentPageId;
-        } finally {
-            frame.unpin(false);
-        }
-    }
-
-    /**
-     * 分配新页
-     *
-     * @return 新页号
-     */
-    private int allocateNewPage() {
-        int newPageId = pageManager.allocatePage();
-        PageFrame frame = sharedBufferPool.newPage(tableId, newPageId);
-
-        frame.pin();
-        frame.unpin(false);
-
-        currentPageId = newPageId;
-        return newPageId;
-    }
-
-    /**
-     * 插入到指定页
-     *
-     * @param pageId 页号
-     * @param rowData 行数据
-     */
-    private void insertToPage(int pageId, byte[] rowData) {
-        PageFrame frame = sharedBufferPool.getPage(tableId, pageId);
-        DataPage page = (DataPage) frame.getPage();
-
-        frame.pin();
-        try {
-            page.insertRow(rowData);
-            frame.markDirty();
-        } finally {
-            frame.unpin(false);
-        }
-    }
-
-    /**
      * 根据主键查询行
      *
-     * 通过聚簇索引查询，时间复杂度 O(log N)。
+     * <p>通过聚簇索引查询，时间复杂度 O(log N)。
      *
      * @param primaryKeyValue 主键值
      * @return 行数据，如果不存在返回null
@@ -468,42 +473,29 @@ public class Table {
     /**
      * 全表扫描
      *
-     * 遍历聚簇索引的所有叶子节点，返回所有行数据。
+     * <p>遍历聚簇索引的所有叶子节点，返回所有行数据。
      * 时间复杂度 O(N)，性能较差，应尽量避免使用。
      *
-     * 实现: 通过聚簇索引的getAll()方法遍历所有叶子节点
+     * <p>实现: 通过聚簇索引的 {@link ClusteredIndex#getAll()} 方法遍历所有叶子节点
      *
-     * MySQL InnoDB对应:
-     * - 全表扫描 → 扫描聚簇索引的所有叶子节点
-     * - 顺序I/O → 叶子节点通过链表连接，顺序读取效率高
+     * <p>MySQL InnoDB 对应:
+     * <ul>
+     *   <li>全表扫描 → 扫描聚簇索引的所有叶子节点</li>
+     *   <li>顺序 I/O → 叶子节点通过链表连接，顺序读取效率高</li>
+     * </ul>
      *
-     * @return 所有行数据
+     * <p>重构设计: 直接使用 {@link ClusteredIndex#getAllRows()} 返回的 Row 列表
+     *
+     * @return 所有逻辑行数据
+     * @throws IllegalStateException 如果聚簇索引未设置
      */
     public List<Row> fullTableScan() {
         if (clusteredIndex == null) {
             throw new IllegalStateException("Clustered index not set");
         }
 
-        // 从聚簇索引获取所有行数据
-        // 注意: ClusteredIndex存储的是Row.toBytes()的字节数组，需要反序列化
-        List<Object> rowObjects = clusteredIndex.getAll();
-
-        // 转换为Row列表
-        List<Row> rows = new ArrayList<>();
-        for (Object obj : rowObjects) {
-            if (obj instanceof byte[]) {
-                // 从字节数组反序列化Row
-                Row row = Row.fromBytes(columns, (byte[]) obj);
-                if (row != null) {
-                    rows.add(row);
-                }
-            } else if (obj instanceof Row) {
-                // 直接是Row对象（某些测试场景）
-                rows.add((Row) obj);
-            }
-        }
-
-        return rows;
+        // 直接从聚簇索引获取所有行 (已经是反序列化后的 Row)
+        return clusteredIndex.getAllRows();
     }
 
     /**

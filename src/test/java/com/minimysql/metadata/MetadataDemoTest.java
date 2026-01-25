@@ -62,8 +62,8 @@ public class MetadataDemoTest {
         Object[] user1 = {1, "alice", "alice@example.com", 25};
         Object[] user2 = {2, "bob", "bob@example.com", 30};
 
-        usersTable.insertRow(new Row(userColumns, user1));
-        usersTable.insertRow(new Row(userColumns, user2));
+        usersTable.insertRow(new Row(user1));
+        usersTable.insertRow(new Row(user2));
 
         // 4. 查询数据
         Row result = usersTable.selectByPrimaryKey(1);

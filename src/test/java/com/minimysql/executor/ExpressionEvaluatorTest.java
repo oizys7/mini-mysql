@@ -47,7 +47,7 @@ class ExpressionEvaluatorTest {
 
         // 创建测试行: {id=1, name="Alice", age=25, salary=5000.0}
         Object[] values = {1, "Alice", 25, 5000.0};
-        row = new Row(columns, values);
+        row = new Row(values);
     }
 
     @Test
@@ -353,7 +353,7 @@ class ExpressionEvaluatorTest {
     void testEvalNullComparison() {
         // 创建包含null的行
         Object[] valuesWithNull = {1, null, 25, 5000.0};
-        Row rowWithNull = new Row(columns, valuesWithNull);
+        Row rowWithNull = new Row(valuesWithNull);
 
         Expression expr = new BinaryExpression(
                 new ColumnExpression("name"),

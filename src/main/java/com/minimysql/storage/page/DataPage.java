@@ -4,37 +4,71 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DataPage - 数据页实现
+ * DataPage - 数据页 (Data Page)
  *
- * 数据页用于存储表中的行数据。每个页固定16KB,使用经典的"槽位+数据"布局:
+ * <p>数据页用于存储表中的行数据记录 (Physical Records)。每个页固定 16KB，使用经典的"槽位 + 数据"布局。
  *
- * 页布局:
- * +-------------------+  <- 0 (页头)
- * | PageType (1 byte) |
- * | PageId (4 bytes)  |
- * | FreeSpaceEnd (4)  |  自由空间结束位置(从后往前增长)
- * | SlotCount (2)     |  已使用的槽位数
- * +-------------------+  <- 11 (槽位表开始)
- * | Slot[0] (2 bytes) |  指向第0行的偏移量
- * | Slot[1] (2 bytes) |  指向第1行的偏移量
- * | ...               |
- * | Slot[N] (2 bytes) |
- * +-------------------+  <- 11 + SlotCount*2 (自由空间开始)
- * |   Free Space      |
- * |   (从前往后增长)  |
- * +-------------------+
- * |       ...         |
- * | Row[N] Data       |  <- 从页尾向前生长
- * | Row[1] Data       |
- * | Row[0] Data       |
- * +-------------------+  <- 16384 (页尾)
+ * <p>MySQL InnoDB 对应关系:
+ * <ul>
+ *   <li>DataPage → InnoDB Data Page (索引页叶子节点)</li>
+ *   <li>16KB 页大小 → InnoDB 默认页大小 (innodb_page_size)</li>
+ *   <li>Slot → Page Directory Slot (页目录槽位)</li>
+ *   <li>Row Data → Physical Record (物理记录)</li>
+ * </ul>
  *
- * 设计哲学:
- * - 行数据从页尾向前生长,槽位表从页头向后生长,中间是自由空间
- * - 删除行时只需要将对应槽位设为0,不需要移动数据(碎片化由后续整理解决)
- * - 行数据可变长,每个行头存储长度信息
+ * <p>InnoDB 页结构 (简化版):
+ * <pre>
+ * +------------------+ <- 0      (FIL Header - 38 bytes)
+ * | Page Type (1)    |  页类型
+ * | Page ID (4)      |  页号
+ * | ...              |  其他元数据
+ * +------------------+ <- 38     (Page Header - 56 bytes)
+ * | Page Header      |  页头信息
+ * | - N_DIR_SLOTS (2)|  目录槽数
+ * | - HEAP_TOP (2)   |  堆顶指针
+ * | - ...            |  其他页头信息
+ * +------------------+ <- 94     (Infimum + Supremum - 26 bytes)
+ * | Infimum Record   |  最小记录
+ * | Supremum Record  |  最大记录
+ * +------------------+ <- 120    (Records - 变长)
+ * | User Records     |  用户记录区域
+ * | - Record 0       |  物理记录 (从后往前生长)
+ * | - Record 1       |
+ * | - ...            |
+ * +------------------+ <- 变长   (Free Space - 变长)
+ * | Free Space       |  空闲空间
+ * +------------------+ <- ~16300 (Page Directory - 变长)
+ * | Page Directory   |  页目录 (槽位数组)
+ * | - Slot[0] (2)    |  指向 Record 0 的偏移量
+ * | - Slot[1] (2)    |  指向 Record 1 的偏移量
+ * | - ...            |
+ * +------------------+ <- 16376  (FIL Trailer - 8 bytes)
+ * | FIL Trailer      |  文件尾 (CHECKSUM 等)
+ * +------------------+ <- 16384 (16KB)
+ * </pre>
  *
- * "Good taste": 没有特殊情况,所有行都通过槽位访问,删除、插入逻辑统一
+ * <p>简化实现 (Mini MySQL):
+ * <ul>
+ *   <li>不实现完整的 FIL Header/Page Header</li>
+ *   <li>不实现 Infimum/Supremum 记录</li>
+ *   <li>简化页目录结构 (只保留槽位数组)</li>
+ *   <li>记录格式: [4字节长度] + [实际数据]</li>
+ * </ul>
+ *
+ * <p>参考文档:
+ * <ul>
+ *   <li>https://dev.mysql.com/doc/refman/8.0/en/innodb-page-structure.html</li>
+ *   <li>https://dev.mysql.com/doc/refman/8.0/en/innodb-data-structures.html</li>
+ * </ul>
+ *
+ * <p>设计哲学:
+ * <ul>
+ *   <li>行数据从页尾向前生长，槽位表从页头向后生长，中间是自由空间</li>
+ *   <li>删除行时只需要将对应槽位设为 0，不需要移动数据 (碎片化由后续整理解决)</li>
+ *   <li>行数据可变长，每个行头存储长度信息</li>
+ * </ul>
+ *
+ * <p>"Good taste": 没有特殊情况，所有行都通过槽位访问，删除、插入逻辑统一
  */
 public class DataPage implements Page {
 

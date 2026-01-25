@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 3. 插入时索引同步更新
  * 4. 范围查询
  */
+@DisplayName("Table - 聚簇索引管理测试")
 class TableIndexTest {
 
     private StorageEngine engine;
@@ -93,11 +94,11 @@ class TableIndexTest {
 
         // 插入数据
         Object[] values1 = {1, "Alice"};
-        Row row1 = new Row(columns, values1);
+        Row row1 = new Row(values1);
         users.insertRow(row1);
 
         Object[] values2 = {2, "Bob"};
-        Row row2 = new Row(columns, values2);
+        Row row2 = new Row(values2);
         users.insertRow(row2);
 
         // 主键查询
@@ -128,7 +129,7 @@ class TableIndexTest {
         // 插入多行
         for (int i = 1; i <= 10; i++) {
             Object[] values = {i, "User" + i};
-            Row row = new Row(columns, values);
+            Row row = new Row(values);
             users.insertRow(row);
         }
 
@@ -158,7 +159,7 @@ class TableIndexTest {
         // 插入数据（ID: 1, 2, 3, 4, 5）
         for (int i = 1; i <= 5; i++) {
             Object[] values = {i, "User" + i};
-            Row row = new Row(columns, values);
+            Row row = new Row(values);
             users.insertRow(row);
         }
 
@@ -193,7 +194,7 @@ class TableIndexTest {
         assertEquals(0, users.getSecondaryIndexCount());
         assertTrue(users.getSecondaryIndexNames().isEmpty());
 
-        // 注意: 当前不支持通过API创建二级索引
+        // TODO 注意: 当前不支持通过API创建二级索引
         // 二级索引需要在InnoDBStorageEngine中添加createIndex方法
         // 这里只是验证数据结构已就绪
     }
@@ -266,11 +267,11 @@ class TableIndexTest {
 
         // 插入不同表的数据
         Object[] userValues = {1, "Alice"};
-        Row userRow = new Row(userColumns, userValues);
+        Row userRow = new Row(userValues);
         users.insertRow(userRow);
 
         Object[] orderValues = {1, 1};
-        Row orderRow = new Row(orderColumns, orderValues);
+        Row orderRow = new Row(orderValues);
         orders.insertRow(orderRow);
 
         // 验证两个表的聚簇索引独立
@@ -303,12 +304,13 @@ class TableIndexTest {
 
         // 插入数据
         Object[] values = {1, "Alice"};
-        Row row = new Row(columns, values);
+        Row row = new Row(values);
         users.insertRow(row);
 
         // 全表扫描（通过聚簇索引的getAll()实现）
         List<Row> results = users.fullTableScan();
         assertEquals(1, results.size());
-        assertEquals("Alice", results.get(0).getValue("name"));
+
+        assertEquals("Alice", users.getRowValue(results.get(0), "name"));
     }
 }

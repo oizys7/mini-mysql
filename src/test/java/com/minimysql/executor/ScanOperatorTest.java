@@ -1,8 +1,8 @@
 package com.minimysql.executor;
 
 import com.minimysql.executor.operator.ScanOperator;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -33,8 +33,7 @@ class ScanOperatorTest {
 
     private static final String TEST_DATA_DIR = "test_data_scan_operator";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;
     private Table table;
 
     @BeforeEach
@@ -43,10 +42,14 @@ class ScanOperatorTest {
         cleanupTestData();
 
         // 创建BufferPool
-        bufferPool = new BufferPool(10);
 
         // 创建StorageEngine
-        storageEngine = new InnoDBStorageEngine(10, false);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建表: users(id INT, name VARCHAR(100), age INT)
         List<Column> columns = Arrays.asList(
@@ -84,7 +87,7 @@ class ScanOperatorTest {
     @DisplayName("测试扫描单行表")
     void testScanSingleRow() {
         // 插入一行数据
-        Row row = new Row(table.getColumns(), new Object[]{1, "Alice", 25});
+        Row row = new Row(new Object[]{1, "Alice", 25});
         table.insertRow(row);
 
         ScanOperator scan = new ScanOperator(table);
@@ -102,9 +105,9 @@ class ScanOperatorTest {
     @DisplayName("测试扫描多行表")
     void testScanMultipleRows() {
         // 插入多行数据
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 30}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 35}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 30}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 35}));
 
         ScanOperator scan = new ScanOperator(table);
 
@@ -150,9 +153,9 @@ class ScanOperatorTest {
     @DisplayName("测试扫描表时行数据顺序")
     void testScanOrder() {
         // 插入多行数据
-        table.insertRow(new Row(table.getColumns(), new Object[]{3, "Charlie", 35}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{1, "Alice", 25}));
-        table.insertRow(new Row(table.getColumns(), new Object[]{2, "Bob", 30}));
+        table.insertRow(new Row(new Object[]{3, "Charlie", 35}));
+        table.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        table.insertRow(new Row(new Object[]{2, "Bob", 30}));
 
         ScanOperator scan = new ScanOperator(table);
 

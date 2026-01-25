@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 4. 插入行数据
  * 5. 关闭引擎
  */
+@DisplayName("InnoDBStorageEngineTest - InnoDB存储引擎测试")
 class InnoDBStorageEngineTest {
 
     private StorageEngine engine;
@@ -277,13 +278,13 @@ class InnoDBStorageEngineTest {
 
         // 插入行
         Object[] values1 = {1, "Alice"};
-        Row row1 = new Row(columns, values1);
+        Row row1 = new Row(values1);
         int pageId1 = users.insertRow(row1);
         assertTrue(pageId1 >= 0);
 
         // 插入另一行
         Object[] values2 = {2, "Bob"};
-        Row row2 = new Row(columns, values2);
+        Row row2 = new Row(values2);
         int pageId2 = users.insertRow(row2);
         assertTrue(pageId2 >= 0);
     }

@@ -4,8 +4,8 @@ import com.minimysql.executor.ExpressionEvaluator;
 import com.minimysql.executor.operator.InsertOperator;
 import com.minimysql.parser.Expression;
 import com.minimysql.parser.expressions.LiteralExpression;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -37,8 +37,7 @@ class InsertOperatorTest {
 
     private static final String TEST_DATA_DIR = "test_data_insert_operator";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;
     private Table table;
     private ExpressionEvaluator evaluator;
 
@@ -48,10 +47,14 @@ class InsertOperatorTest {
         cleanupTestData();
 
         // 创建BufferPool
-        bufferPool = new BufferPool(10);
 
         // 创建StorageEngine (不使用元数据持久化)
-        storageEngine = new InnoDBStorageEngine(10, false);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
         // 创建表: users(id INT, name VARCHAR(100), age INT)
         List<Column> columns = Arrays.asList(

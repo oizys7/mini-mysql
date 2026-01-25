@@ -698,25 +698,34 @@ public class BPlusTreeNode {
     /**
      * 序列化叶子节点的Row数据(辅助方法)
      *
-     * ⚠️ 简化实现:假设Row已经序列化为byte[]
-     * 生产环境:应该直接存储Row的字节数组
+     * ⚠️ 已废弃: Row 序列化现在由 Table 负责
+     * 请使用 Table.serializeRow() 代替
      *
+     * @deprecated 使用 Table.serializeRow() 代替
      * @param row Row对象
      * @return 字节数组
      */
+    @Deprecated
     public static byte[] serializeRow(Row row) {
-        return row.toBytes();
+        throw new UnsupportedOperationException(
+                "Row serialization is now handled by Table.serializeRow()");
     }
 
     /**
      * 反序列化叶子节点的Row数据(辅助方法)
      *
+     * ⚠️ 已废弃: Row 反序列化现在由 Table 负责
+     * 请使用 Table.deserializeRow() 代替
+     *
+     * @deprecated 使用 Table.deserializeRow() 代替
      * @param rowBytes Row字节数组
      * @param columns 列定义
      * @return Row对象
      */
+    @Deprecated
     public static Row deserializeRow(
             byte[] rowBytes, java.util.List<Column> columns) {
-        return Row.fromBytes(columns, rowBytes);
+        throw new UnsupportedOperationException(
+                "Row deserialization is now handled by Table.deserializeRow()");
     }
 }

@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 并发访问安全
  * - 磁盘读写持久化
  */
+@DisplayName("BufferPool - 缓冲池管理器测试")
 class BufferPoolTest {
 
     private BufferPool bufferPool;

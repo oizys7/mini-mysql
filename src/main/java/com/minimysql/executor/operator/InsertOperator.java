@@ -169,7 +169,7 @@ public class InsertOperator implements Operator {
                 Object[] mappedValues = mapAndConvertValues(tableColumns, columnIndexes, values);
 
                 // 3. 创建Row对象
-                Row row = new Row(tableColumns, mappedValues);
+                Row row = new Row(mappedValues);
 
                 // 4. 插入到表
                 table.insertRow(row);

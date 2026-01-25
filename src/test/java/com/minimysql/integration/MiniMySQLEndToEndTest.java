@@ -5,7 +5,7 @@ import com.minimysql.metadata.SchemaManager;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.result.QueryResult;
 import com.minimysql.storage.StorageEngine;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
@@ -39,6 +39,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 实用主义: 覆盖主要使用场景，不是100%的SQL标准
  * - 数据结构优先: 测试的核心是验证数据正确性
  *
+ * 重构说明：
+ * - 使用StorageEngine接口而不是InnoDBStorageEngine具体实现
+ * - 通过StorageEngineFactory创建引擎（策略模式）
+ * - 支持未来轻松切换到其他存储引擎实现
+ *
  * 测试策略：
  * - 每个测试方法独立（通过cleanupTestData()清理）
  * - 测试间无状态污染
@@ -52,7 +57,7 @@ public class MiniMySQLEndToEndTest {
     /** 测试数据目录 */
     private static final String TEST_DATA_DIR = getTestDataDir();
 
-    private StorageEngine storageEngine;
+    private StorageEngine storageEngine;  // 改为接口类型
     private SQLParser parser;
 
     /**
@@ -68,8 +73,13 @@ public class MiniMySQLEndToEndTest {
         // 清理测试数据
         cleanupTestData();
 
-        // 创建存储引擎（启用元数据持久化，使用测试专用数据目录）
-        storageEngine = new InnoDBStorageEngine(50, true, TEST_DATA_DIR);
+        // 创建存储引擎（使用工厂模式，启用元数据持久化）
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                50,
+                true,
+                TEST_DATA_DIR
+        );
 
         // 创建SQL解析器
         parser = new SQLParser();
@@ -221,7 +231,12 @@ public class MiniMySQLEndToEndTest {
         logger.info("第二步：关闭存储引擎");
 
         // 第三步：重新创建存储引擎（模拟重启）
-        storageEngine = new InnoDBStorageEngine(50, true, TEST_DATA_DIR);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                50,
+                true,
+                TEST_DATA_DIR
+        );
         logger.info("第三步：重新创建存储引擎（模拟重启）");
 
         // 第四步：验证表定义已加载
@@ -366,7 +381,7 @@ public class MiniMySQLEndToEndTest {
         }
 
         // 创建Row并插入
-        Row row = new Row(table.getColumns(), values);
+        Row row = new Row(values);
         table.insertRow(row);
 
         logger.info("插入成功: table={}, values={}", tableName, Arrays.toString(values));
