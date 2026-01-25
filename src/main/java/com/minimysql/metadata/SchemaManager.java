@@ -306,7 +306,11 @@ public class SchemaManager {
             registerSystemTableToEngine(sysColumnsTable);
             logger.debug("系统表 {} 加载完成", SystemTables.SYS_COLUMNS);
 
-            logger.info("系统表加载完成");
+            // 验证系统表数据是否加载成功
+            List<Row> sysTablesData = sysTablesTable.fullTableScan();
+            List<Row> sysColumnsData = sysColumnsTable.fullTableScan();
+            logger.info("系统表加载完成，SYS_TABLES有{}行数据，SYS_COLUMNS有{}行数据",
+                    sysTablesData.size(), sysColumnsData.size());
         } catch (Exception e) {
             logger.error("从磁盘加载系统表失败", e);
             throw new RuntimeException("Failed to load system tables from disk", e);
@@ -750,9 +754,11 @@ public class SchemaManager {
      * @param tableName 表名
      */
     private void insertToSysTables(int tableId, String tableName) {
+        logger.debug("写入SYS_TABLES: tableId={}, tableName={}", tableId, tableName);
         Object[] values = {tableId, tableName};
         Row row = new Row(values);
         sysTablesTable.insertRow(row);
+        logger.debug("SYS_TABLES插入成功，当前表共有{}行", sysTablesTable.fullTableScan().size());
     }
 
     /**
