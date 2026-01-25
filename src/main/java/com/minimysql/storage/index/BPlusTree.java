@@ -110,8 +110,13 @@ public abstract class BPlusTree implements Index {
     private void loadOrCreate() {
         pageManager.load(indexId);
 
-        if (pageManager.getAllocatedPageCount() == 0) {
+        int allocatedCount = pageManager.getAllocatedPageCount();
+        logger.debug("BPlusTree[{}] loadOrCreate() - 已分配页数: {}, nextPageId: {}",
+            indexId, allocatedCount, pageManager.getNextPageId());
+
+        if (allocatedCount == 0) {
             // 创建新索引:分配根节点(叶子节点)
+            logger.debug("BPlusTree[{}] 创建新索引", indexId);
             BPlusTreeNode root = createRootNode();
             root.setPageId(ROOT_PAGE_ID);
 
@@ -121,10 +126,14 @@ public abstract class BPlusTree implements Index {
             this.height = 1;
         } else {
             // 加载现有索引:从页0读取根节点
+            logger.debug("BPlusTree[{}] 加载现有索引", indexId);
             BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
+            logger.debug("BPlusTree[{}] 根节点: pageId={}, keyCount={}, isLeaf={}",
+                indexId, root.getPageId(), root.getKeyCount(), root.isLeaf());
 
             // 通过遍历计算树的实际高度
             this.height = calculateHeight(root);
+            logger.debug("BPlusTree[{}] 树高度: {}", indexId, height);
         }
     }
 
@@ -873,14 +882,23 @@ public abstract class BPlusTree implements Index {
 
         // 1. 找到最左边的叶子节点（最小的键）
         BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
+        logger.debug("getAll() - 根节点: pageId={}, keyCount={}, isLeaf={}",
+            root.getPageId(), root.getKeyCount(), root.isLeaf());
+
         BPlusTreeNode leaf = findLeftmostLeaf(root);
+        logger.debug("getAll() - 最左叶子节点: pageId={}, keyCount={}",
+            leaf.getPageId(), leaf.getKeyCount());
 
         // 2. 遍历所有叶子节点
+        int leafCount = 0;
         while (leaf != null) {
+            leafCount++;
             // 收集当前叶子节点的所有值
             for (int i = 0; i < leaf.getKeyCount(); i++) {
                 results.add(leaf.getValue(i));
             }
+            logger.debug("getAll() - 叶子节点{}/{}: pageId={}, keyCount={}, 收集{}个值",
+                leafCount, "-", leaf.getPageId(), leaf.getKeyCount());
 
             // 移动到下一个叶子节点
             int nextLeafPageId = leaf.getNextLeafPageId();
@@ -891,6 +909,7 @@ public abstract class BPlusTree implements Index {
             leaf = loadNode(nextLeafPageId);
         }
 
+        logger.debug("getAll() 完成 - 共遍历{}个叶子节点，收集{}条记录", leafCount, results.size());
         return results;
     }
 

@@ -1,5 +1,6 @@
 package com.minimysql.metadata;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -36,7 +37,7 @@ public class SchemaManagerTest {
      */
     private static String getTestMetadataDir() {
         String workingDir = System.getProperty("user.dir");
-        return workingDir + "/data/test_metadata";
+        return workingDir + CommonConstant.DATA_PREFIX + "/test_metadata";
     }
 
     @BeforeEach

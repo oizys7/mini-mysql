@@ -1,5 +1,6 @@
 package com.minimysql.storage;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 
 /**
@@ -108,7 +109,7 @@ public class StorageEngineFactory {
      * @throws IllegalArgumentException 不支持的引擎类型
      */
     public static StorageEngine createEngine(EngineType engineType, int bufferPoolSize) {
-        return createEngine(engineType, bufferPoolSize, false, "./data");
+        return createEngine(engineType, bufferPoolSize, false, CommonConstant.DATA_PREFIX);
     }
 
     /**

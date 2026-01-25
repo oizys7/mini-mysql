@@ -1,4 +1,5 @@
 package com.minimysql.storage.impl;
+import com.minimysql.CommonConstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +136,7 @@ public class InnoDBStorageEngine implements StorageEngine {
         this.tableIdGenerator = new AtomicInteger(0);
         this.closed = false;
         this.enableMetadataPersistence = enableMetadataPersistence;
-        this.dataDir = dataDir;
+        this.dataDir = CommonConstant.DATA_PREFIX + dataDir;
 
         // 初始化SchemaManager
         if (enableMetadataPersistence) {

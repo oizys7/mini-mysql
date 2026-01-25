@@ -1,5 +1,6 @@
 package com.minimysql.integration;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.executor.ExecutionPlan;
 import com.minimysql.executor.operator.CreateTableOperator;
 import com.minimysql.executor.Operator;
@@ -43,7 +44,7 @@ class MetadataPersistenceTest {
      */
     private static String getTestDataDir() {
         String workingDir = System.getProperty("user.dir");
-        return workingDir + "/test_data_metadata_persistence";
+        return workingDir + CommonConstant.DATA_PREFIX + "/test_data_metadata_persistence";
     }
 
     @BeforeEach

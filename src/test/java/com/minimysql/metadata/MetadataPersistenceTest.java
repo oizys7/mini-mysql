@@ -1,5 +1,6 @@
 package com.minimysql.metadata;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -29,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MetadataPersistenceTest {
 
-    private static final String TEST_DATA_DIR = "./data/test_persistence";
+    private static final String TEST_DATA_DIR = CommonConstant.DATA_PREFIX + "/test_persistence";
 
     @BeforeEach
     public void setUp() {

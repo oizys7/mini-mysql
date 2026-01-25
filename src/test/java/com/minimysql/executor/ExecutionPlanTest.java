@@ -1,5 +1,6 @@
 package com.minimysql.executor;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.executor.operator.*;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.parser.Statement;
@@ -34,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("查询计划生成器测试")
 class ExecutionPlanTest {
 
-    private static final String TEST_DATA_DIR = "test_data_execution_plan";
+    private static final String TEST_DATA_DIR = CommonConstant.DATA_PREFIX + "test_data_execution_plan";
 
     private StorageEngine storageEngine;
     private SQLParser parser;

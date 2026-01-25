@@ -1,5 +1,6 @@
 package com.minimysql.integration;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.executor.VolcanoExecutor;
 import com.minimysql.metadata.SchemaManager;
 import com.minimysql.parser.SQLParser;
@@ -65,7 +66,7 @@ public class MiniMySQLEndToEndTest {
      */
     private static String getTestDataDir() {
         String workingDir = System.getProperty("user.dir");
-        return workingDir + "/data/test_data_e2e";
+        return workingDir + CommonConstant.DATA_PREFIX + "/test_data_e2e";
     }
 
     @BeforeEach

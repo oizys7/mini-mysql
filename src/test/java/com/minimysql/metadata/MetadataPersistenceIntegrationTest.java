@@ -1,5 +1,6 @@
 package com.minimysql.metadata;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -38,7 +39,7 @@ public class MetadataPersistenceIntegrationTest {
     private static String getTestDataDir() {
         // 获取当前工作目录（项目根目录）
         String workingDir = System.getProperty("user.dir");
-        return workingDir + "/data/test_integration";
+        return workingDir + CommonConstant.DATA_PREFIX+ "/test_integration";
     }
 
     @BeforeEach

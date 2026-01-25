@@ -1,5 +1,6 @@
 package com.minimysql.metadata;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
@@ -106,7 +107,7 @@ public class SchemaManager {
     private boolean initialized;
 
     /** 数据目录配置 */
-    private static final String DEFAULT_METADATA_DIR = "./data/metadata";
+    private static final String DEFAULT_METADATA_DIR = CommonConstant.DATA_PREFIX + "/metadata";
 
     /**
      * 创建SchemaManager
@@ -421,10 +422,44 @@ public class SchemaManager {
      */
     private void flushSystemTables() {
         // 刷新SYS_TABLES表的所有脏页到磁盘
+        // 注意：数据实际存储在聚簇索引中，索引ID = tableId * 100
         storageEngine.getBufferPool().flushTablePages(SystemTables.SYS_TABLES_ID);
+
+        // 刷新SYS_TABLES聚簇索引的脏页和元数据
+        flushIndexPages(sysTablesTable);
 
         // 刷新SYS_COLUMNS表的所有脏页到磁盘
         storageEngine.getBufferPool().flushTablePages(SystemTables.SYS_COLUMNS_ID);
+
+        // 刷新SYS_COLUMNS聚簇索引的脏页和元数据
+        flushIndexPages(sysColumnsTable);
+    }
+
+    /**
+     * 刷新表的聚簇索引页和元数据
+     *
+     * @param table 表对象
+     */
+    private void flushIndexPages(Table table) {
+        if (table == null || table.getClusteredIndex() == null) {
+            return;
+        }
+
+        ClusteredIndex clusteredIndex = table.getClusteredIndex();
+        int indexId = clusteredIndex.getIndexId();
+
+        // TODO 优化: 应该只刷新索引的页，而不是全部
+        // 临时方案: 刷新所有页确保索引数据被写入磁盘
+        storageEngine.getBufferPool().flushAllPages();
+
+        // 保存索引的PageManager元数据
+        try {
+            PageManager indexPageManager = clusteredIndex.getPageManager();
+            indexPageManager.save(indexId);
+            logger.debug("保存索引PageManager元数据: indexId={}", indexId);
+        } catch (Exception e) {
+            logger.warn("Failed to save index page metadata: indexId={}", indexId, e);
+        }
     }
 
     /**
