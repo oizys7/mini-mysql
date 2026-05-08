@@ -196,68 +196,96 @@ public class ASTBuilder extends MySQLBaseVisitor<Object> {
     // ==================== 表达式 ====================
 
     @Override
-    public Expression visitParenthesisExpr(MySQLParser.ParenthesisExprContext ctx) {
-        return (Expression) visit(ctx.expression());
-    }
-
-    @Override
-    public Expression visitArithmeticExpr(MySQLParser.ArithmeticExprContext ctx) {
-        Expression left = (Expression) visit(ctx.expression(0));
-        Expression right = (Expression) visit(ctx.expression(1));
-        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
-
-        if (operator == null) {
-            throw new ParseException("Unknown operator: " + ctx.op.getText());
+    public Expression visitOrExpression(MySQLParser.OrExpressionContext ctx) {
+        if (ctx.OR() != null) {
+            Expression left = (Expression) visit(ctx.orExpression());
+            Expression right = (Expression) visit(ctx.andExpression());
+            return new BinaryExpression(left, OperatorEnum.OR, right);
         }
-
-        return new BinaryExpression(left, operator, right);
+        return (Expression) visit(ctx.andExpression());
     }
 
     @Override
-    public Expression visitComparisonExpr(MySQLParser.ComparisonExprContext ctx) {
-        Expression left = (Expression) visit(ctx.expression(0));
-        Expression right = (Expression) visit(ctx.expression(1));
-        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
-
-        if (operator == null) {
-            throw new ParseException("Unknown operator: " + ctx.op.getText());
+    public Expression visitAndExpression(MySQLParser.AndExpressionContext ctx) {
+        if (ctx.AND() != null) {
+            Expression left = (Expression) visit(ctx.andExpression());
+            Expression right = (Expression) visit(ctx.notExpression());
+            return new BinaryExpression(left, OperatorEnum.AND, right);
         }
-
-        return new BinaryExpression(left, operator, right);
+        return (Expression) visit(ctx.notExpression());
     }
 
     @Override
-    public Expression visitNotExpr(MySQLParser.NotExprContext ctx) {
-        Expression operand = (Expression) visit(ctx.expression());
-        return new NotExpression(operand);
-    }
-
-    @Override
-    public Expression visitLogicalExpr(MySQLParser.LogicalExprContext ctx) {
-        Expression left = (Expression) visit(ctx.expression(0));
-        Expression right = (Expression) visit(ctx.expression(1));
-        OperatorEnum operator = OperatorEnum.fromSymbol(ctx.op.getText());
-
-        if (operator == null) {
-            throw new ParseException("Unknown operator: " + ctx.op.getText());
+    public Expression visitNotExpression(MySQLParser.NotExpressionContext ctx) {
+        if (ctx.NOT() != null) {
+            Expression operand = (Expression) visit(ctx.notExpression());
+            return new NotExpression(operand);
         }
-
-        return new BinaryExpression(left, operator, right);
+        return (Expression) visit(ctx.comparisonExpression());
     }
 
     @Override
-    public Expression visitLiteralExpr(MySQLParser.LiteralExprContext ctx) {
-        return (Expression) visit(ctx.literal());
-    }
+    public Expression visitComparisonExpression(MySQLParser.ComparisonExpressionContext ctx) {
+        if (ctx.comparisonOp() != null) {
+            Expression left = (Expression) visit(ctx.comparisonExpression());
+            Expression right = (Expression) visit(ctx.additiveExpression());
+            OperatorEnum operator = OperatorEnum.fromSymbol(ctx.comparisonOp().getText());
 
-    @Override
-    public Expression visitColumnExpr(MySQLParser.ColumnExprContext ctx) {
-        // 解析列名(可能包含表名前缀,如users.id)
-        List<String> parts = new ArrayList<>();
-        for (MySQLParser.IdentifierContext identCtx : ctx.identifier()) {
-            parts.add(identCtx.getText());
+            if (operator == null) {
+                throw new ParseException("Unknown operator: " + ctx.comparisonOp().getText());
+            }
+
+            return new BinaryExpression(left, operator, right);
         }
-        return new ColumnExpression(parts);
+        return (Expression) visit(ctx.additiveExpression());
+    }
+
+    @Override
+    public Expression visitAdditiveExpression(MySQLParser.AdditiveExpressionContext ctx) {
+        if (ctx.additiveOp() != null) {
+            Expression left = (Expression) visit(ctx.additiveExpression());
+            Expression right = (Expression) visit(ctx.multiplicativeExpression());
+            OperatorEnum operator = OperatorEnum.fromSymbol(ctx.additiveOp().getText());
+
+            if (operator == null) {
+                throw new ParseException("Unknown operator: " + ctx.additiveOp().getText());
+            }
+
+            return new BinaryExpression(left, operator, right);
+        }
+        return (Expression) visit(ctx.multiplicativeExpression());
+    }
+
+    @Override
+    public Expression visitMultiplicativeExpression(MySQLParser.MultiplicativeExpressionContext ctx) {
+        if (ctx.multiplicativeOp() != null) {
+            Expression left = (Expression) visit(ctx.multiplicativeExpression());
+            Expression right = (Expression) visit(ctx.primaryExpression());
+            OperatorEnum operator = OperatorEnum.fromSymbol(ctx.multiplicativeOp().getText());
+
+            if (operator == null) {
+                throw new ParseException("Unknown operator: " + ctx.multiplicativeOp().getText());
+            }
+
+            return new BinaryExpression(left, operator, right);
+        }
+        return (Expression) visit(ctx.primaryExpression());
+    }
+
+    @Override
+    public Expression visitPrimaryExpression(MySQLParser.PrimaryExpressionContext ctx) {
+        if (ctx.literal() != null) {
+            return (Expression) visit(ctx.literal());
+        } else if (ctx.LPAREN() != null) {
+            return (Expression) visit(ctx.orExpression());
+        } else {
+            // identifier (DOT identifier)*
+            List<String> parts = new ArrayList<>();
+            for (var identCtx : ctx.identifier()) {
+                parts.add(identCtx.getText());
+            }
+            return new ColumnExpression(parts);
+        }
     }
 
     // ==================== 字面量 ====================

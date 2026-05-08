@@ -1,5 +1,7 @@
 package com.minimysql.storage.table;
 
+import java.util.List;
+
 /**
  * Column - 列定义
  *
@@ -121,6 +123,26 @@ public class Column {
      */
     public boolean isVariableLength() {
         return type.isVariableLength();
+    }
+
+    /**
+     * 在列列表中查找指定名称的列索引
+     *
+     * @param columns 列列表
+     * @param columnName 列名（不区分大小写）
+     * @return 列索引，如果未找到返回 -1
+     */
+    public static int findIndex(List<Column> columns, String columnName) {
+        if (columns == null || columnName == null) {
+            return -1;
+        }
+
+        for (int i = 0; i < columns.size(); i++) {
+            if (columns.get(i).getName().equalsIgnoreCase(columnName)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**

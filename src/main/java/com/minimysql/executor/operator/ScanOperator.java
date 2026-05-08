@@ -5,7 +5,6 @@ import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * ScanOperator - 全表扫描算子
@@ -66,15 +65,13 @@ public class ScanOperator implements Operator {
 
         this.table = table;
 
-        // 立即执行全表扫描,获得迭代器
-        // 设计决策:不在构造函数中缓存所有行,而是直接获得Iterator
-        // 原因:
-        // 1. 懒加载:调用方不需要等待全表扫描完成
-        // 2. 内存友好: Iterator模式,按需读取
-        // 3. 简单直接:不实现复杂的异步加载逻辑
+        // 使用惰性迭代器，按需扫描表数据
+        // 设计决策：
+        // 1. 惰性加载：只在需要时才读取数据
+        // 2. 内存友好：不一次性加载所有行到内存
+        // 3. 符合火山模型的"拉取"原则
 
-        List<Row> allRows = table.fullTableScan();
-        this.rowIterator = allRows.iterator();
+        this.rowIterator = table.fullTableScanLazy();
     }
 
     /**

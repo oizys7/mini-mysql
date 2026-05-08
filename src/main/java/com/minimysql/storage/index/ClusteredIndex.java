@@ -259,6 +259,40 @@ public class ClusteredIndex extends BPlusTree {
     }
 
     /**
+     * 获取所有逻辑行数据的惰性迭代器
+     *
+     * 按需遍历所有物理记录并反序列化为行，不一次性加载所有数据到内存。
+     * 用于全表扫描操作，特别是大表场景。
+     *
+     * @return 所有逻辑行数据的惰性迭代器
+     * @throws IllegalStateException 如果 Table 未设置
+     */
+    public java.util.Iterator<Row> getAllRowsLazy() {
+        if (table == null) {
+            throw new IllegalStateException("Table not set for ClusteredIndex");
+        }
+
+        java.util.Iterator<Object> physicalRecords = getAllLazy();
+
+        return new java.util.Iterator<Row>() {
+            @Override
+            public boolean hasNext() {
+                return physicalRecords.hasNext();
+            }
+
+            @Override
+            public Row next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException("No more rows");
+                }
+
+                byte[] physicalRecord = (byte[]) physicalRecords.next();
+                return RecordSerializer.deserialize(physicalRecord, table.getColumns());
+            }
+        };
+    }
+
+    /**
      * 将主键值哈希为int
      *
      * 简化实现:

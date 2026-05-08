@@ -923,6 +923,55 @@ public abstract class BPlusTree implements Index {
     }
 
     /**
+     * 获取所有记录的惰性迭代器
+     *
+     * 按需遍历所有叶子节点，不一次性加载所有数据到内存。
+     * 用于全表扫描操作，特别是大表场景。
+     *
+     * @return 所有值的惰性迭代器
+     */
+    public java.util.Iterator<Object> getAllLazy() {
+        BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
+        BPlusTreeNode firstLeaf = findLeftmostLeaf(root);
+
+        return new java.util.Iterator<Object>() {
+            private BPlusTreeNode currentLeaf = firstLeaf;
+            private int currentKeyIndex = 0;
+
+            @Override
+            public boolean hasNext() {
+                if (currentLeaf == null) {
+                    return false;
+                }
+
+                if (currentKeyIndex < currentLeaf.getKeyCount()) {
+                    return true;
+                }
+
+                // 移动到下一个叶子节点
+                int nextLeafPageId = currentLeaf.getNextLeafPageId();
+                return nextLeafPageId != -1;
+            }
+
+            @Override
+            public Object next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException("No more elements in BPlusTree");
+                }
+
+                // 如果当前叶子节点的键已经遍历完，移动到下一个叶子节点
+                if (currentKeyIndex >= currentLeaf.getKeyCount()) {
+                    int nextLeafPageId = currentLeaf.getNextLeafPageId();
+                    currentLeaf = loadNode(nextLeafPageId);
+                    currentKeyIndex = 0;
+                }
+
+                return currentLeaf.getValue(currentKeyIndex++);
+            }
+        };
+    }
+
+    /**
      * 找到最左边的叶子节点
      *
      * @param node 当前节点

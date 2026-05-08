@@ -499,6 +499,25 @@ public class Table {
     }
 
     /**
+     * 全表扫描（惰性迭代器版本）
+     *
+     * 按需遍历表的所有行数据，不一次性加载所有数据到内存。
+     * 特别适合大表扫描场景。
+     *
+     * 重构设计: 使用 {@link ClusteredIndex#getAllRowsLazy()} 返回的惰性迭代器
+     *
+     * @return 所有逻辑行数据的惰性迭代器
+     * @throws IllegalStateException 如果聚簇索引未设置
+     */
+    public java.util.Iterator<Row> fullTableScanLazy() {
+        if (clusteredIndex == null) {
+            throw new IllegalStateException("Clustered index not set");
+        }
+
+        return clusteredIndex.getAllRowsLazy();
+    }
+
+    /**
      * 根据主键更新行
      *
      * 简化实现:直接覆盖,不处理旧值删除和索引更新

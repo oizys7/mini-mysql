@@ -166,16 +166,57 @@ deleteStatement:
 ;
 
 // ==================== 表达式 ====================
+// 使用分层规则处理运算符优先级（优先级从低到高）
 expression:
-    LPAREN expression RPAREN                          # parenthesisExpr
-    | expression op=(STAR | DIVIDE | MOD) expression # arithmeticExpr
-    | expression op=(PLUS | MINUS) expression        # arithmeticExpr
-    | expression op=(GT | LT | GTE | LTE | NEQ | ASSIGN) expression # comparisonExpr
-    | NOT expression                                  # notExpr
-    | expression op=AND expression                       # logicalExpr
-    | expression op=OR expression                        # logicalExpr
-    | literal                                         # literalExpr
-    | identifier (DOT identifier)*                   # columnExpr
+    orExpression
+;
+
+orExpression:
+    orExpression OR andExpression
+    | andExpression
+;
+
+andExpression:
+    andExpression AND notExpression
+    | notExpression
+;
+
+notExpression:
+    NOT notExpression
+    | comparisonExpression
+;
+
+comparisonExpression:
+    comparisonExpression comparisonOp additiveExpression
+    | additiveExpression
+;
+
+additiveExpression:
+    additiveExpression additiveOp multiplicativeExpression
+    | multiplicativeExpression
+;
+
+multiplicativeExpression:
+    multiplicativeExpression multiplicativeOp primaryExpression
+    | primaryExpression
+;
+
+primaryExpression:
+    LPAREN orExpression RPAREN
+    | literal
+    | identifier (DOT identifier)*
+;
+
+comparisonOp:
+    GT | LT | GTE | LTE | NEQ | ASSIGN
+;
+
+multiplicativeOp:
+    STAR | DIVIDE | MOD
+;
+
+additiveOp:
+    PLUS | MINUS
 ;
 
 // ==================== 字面量 ====================
