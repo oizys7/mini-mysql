@@ -7,12 +7,12 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -43,7 +43,7 @@ public class MetadataPersistenceIntegrationTest {
 
     @BeforeEach
     public void setUp() {
-        cleanupTestDir();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
         // 创建存储引擎，启用元数据持久化，使用测试专用数据目录
         storageEngine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
     }
@@ -55,27 +55,6 @@ public class MetadataPersistenceIntegrationTest {
         }
         // 注意：不在这里清理测试数据，以便检查数据是否被正确写入
         // 测试数据会在下一次测试的setUp()中被清理
-    }
-
-    private void cleanupTestDir() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            deleteDirectory(dir);
-        }
-    }
-
-    private void deleteDirectory(File directory) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        directory.delete();
     }
 
     @Test

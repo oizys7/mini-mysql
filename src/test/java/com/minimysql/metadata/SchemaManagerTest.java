@@ -5,12 +5,12 @@ import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -43,7 +43,7 @@ public class SchemaManagerTest {
     @BeforeEach
     public void setUp() throws Exception {
         // 清理测试目录
-        cleanupTestDir();
+        TestHelper.cleanupTestDir(TEST_METADATA_DIR);
 
         // 创建存储引擎(启用元数据持久化，使用测试目录)
         storageEngine = new InnoDBStorageEngine(100, true, TEST_METADATA_DIR);
@@ -60,28 +60,7 @@ public class SchemaManagerTest {
             storageEngine.close();
         }
         // 清理测试目录
-        cleanupTestDir();
-    }
-
-    private void cleanupTestDir() {
-        File dir = new File(TEST_METADATA_DIR);
-        if (dir.exists()) {
-            deleteDirectory(dir);
-        }
-    }
-
-    private void deleteDirectory(File directory) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        directory.delete();
+        TestHelper.cleanupTestDir(TEST_METADATA_DIR);
     }
 
     @Test

@@ -30,47 +30,18 @@ class TableTest {
 
     private static final int TEST_TABLE_ID = 100;
 
-    private BufferPool bufferPool;
-    private PageManager pageManager;
+    private TableFixture fixture;
     private Table table;
 
     @BeforeEach
     void setUp() {
-        bufferPool = new BufferPool(10);
-        pageManager = new PageManager();
-        pageManager.load(TEST_TABLE_ID);
-
-        // 创建表定义
-        List<Column> columns = Arrays.asList(
-                new Column("id", DataType.INT, false),
-                new Column("name", DataType.VARCHAR, 100, true),
-                new Column("age", DataType.INT, false),
-                new Column("balance", DataType.DOUBLE, true),
-                new Column("active", DataType.BOOLEAN, false),
-                new Column("created_at", DataType.TIMESTAMP, true)
-        );
-
-        table = new Table(TEST_TABLE_ID, "users", columns);
-        table.open(bufferPool, pageManager);
-
-        // ✅ 重构后: 需要创建聚簇索引 (数据存储在聚簇索引中)
-        ClusteredIndex clusteredIndex = new ClusteredIndex(
-                TEST_TABLE_ID,
-                "id",           // 主键列名
-                0,              // 主键列索引
-                bufferPool,
-                pageManager
-        );
-        clusteredIndex.setTable(table);
-        table.setClusteredIndex(clusteredIndex);
+        fixture = new TableFixture(TEST_TABLE_ID);
+        table = fixture.createDefaultTable();
     }
 
     @AfterEach
     void tearDown() {
-        if (table != null) {
-            table.close();
-        }
-        pageManager.deleteMetadata();
+        fixture.cleanup();
     }
 
     @Test
@@ -181,22 +152,16 @@ class TableTest {
     @Test
     @DisplayName("VARCHAR长度验证")
     void testVarcharLengthValidation() {
+        // 创建一个独立的fixture用于此测试
+        TableFixture smallFixture = new TableFixture(TEST_TABLE_ID + 1);
+
         // 创建一个限制长度的VARCHAR列
         List<Column> columns = Arrays.asList(
                 new Column("id", DataType.INT, false),
                 new Column("short_name", DataType.VARCHAR, 5, true)
         );
 
-        Table smallTable = new Table(TEST_TABLE_ID + 1, "test", columns);
-        smallTable.open(bufferPool, pageManager);
-
-        // ✅ 重构后: 需要创建聚簇索引
-        ClusteredIndex clusteredIndex = new ClusteredIndex(
-                TEST_TABLE_ID + 1,
-                "id", 0, bufferPool, pageManager
-        );
-        clusteredIndex.setTable(smallTable);
-        smallTable.setClusteredIndex(clusteredIndex);
+        Table smallTable = smallFixture.createTable("test", columns);
 
         // 正常长度
         Object[] values1 = {1, "Hello"};
@@ -210,7 +175,7 @@ class TableTest {
             smallTable.insertRow(row2);
         });
 
-        smallTable.close();
+        smallFixture.cleanup();
     }
 
     @Test
@@ -304,6 +269,9 @@ class TableTest {
     @Test
     @DisplayName("所有数据类型验证")
     void testAllDataTypes() {
+        // 创建一个独立的fixture用于此测试
+        TableFixture allTypesFixture = new TableFixture(TEST_TABLE_ID + 3);
+
         // 创建包含所有类型的表
         List<Column> allTypesColumns = Arrays.asList(
                 new Column("col_int", DataType.INT, false),
@@ -315,8 +283,7 @@ class TableTest {
                 new Column("col_timestamp", DataType.TIMESTAMP, true)
         );
 
-        Table allTypesTable = new Table(TEST_TABLE_ID + 3, "all_types", allTypesColumns);
-        allTypesTable.open(bufferPool, pageManager);
+        Table allTypesTable = allTypesFixture.createTable("all_types", allTypesColumns);
 
         Date now = new Date();
 
@@ -335,6 +302,6 @@ class TableTest {
 
         assertTrue(pageId >= 0);
 
-        allTypesTable.close();
+        allTypesFixture.cleanup();
     }
 }

@@ -2,15 +2,11 @@ package com.minimysql.storage.index;
 
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.page.PageManager;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,32 +22,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class IndexInterfaceTest {
 
     private BufferPool bufferPool;
-    private static final String DATA_DIR = "data";
+    private static final String TEST_DATA_DIR = "test_index_interface";
 
     @BeforeEach
     void setUp() {
-        bufferPool = new BufferPool(100);
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
+        bufferPool = new BufferPool(100, TEST_DATA_DIR);
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         if (bufferPool != null) {
             bufferPool.clear();
         }
 
         // 清理测试数据目录
-        Path dataPath = Paths.get(DATA_DIR);
-        if (Files.exists(dataPath)) {
-            Files.walk(dataPath)
-                    .sorted((a, b) -> b.compareTo(a))
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            // 忽略删除失败
-                        }
-                    });
-        }
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     /**

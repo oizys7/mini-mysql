@@ -7,12 +7,12 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,37 +30,16 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MetadataPersistenceTest {
 
-    private static final String TEST_DATA_DIR = CommonConstant.DATA_PREFIX + "/test_persistence";
+    private static final String TEST_DATA_DIR = "test_persistence";
 
     @BeforeEach
     public void setUp() {
-        cleanupTestDir();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @AfterEach
     public void tearDown() {
-        cleanupTestDir();
-    }
-
-    private void cleanupTestDir() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            deleteDirectory(dir);
-        }
-    }
-
-    private void deleteDirectory(File directory) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        directory.delete();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test

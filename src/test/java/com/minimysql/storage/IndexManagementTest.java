@@ -5,15 +5,12 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,32 +29,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class IndexManagementTest {
 
     private InnoDBStorageEngine storageEngine;
-    private static final String DATA_DIR = "data";
+    private static final String DATA_DIR = "test_index_management";
 
     @BeforeEach
     void setUp() {
-        storageEngine = new InnoDBStorageEngine(100);
+        TestHelper.cleanupTestDir(DATA_DIR);
+        storageEngine = new InnoDBStorageEngine(100, true, DATA_DIR);
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         if (storageEngine != null) {
             storageEngine.close();
         }
 
         // 清理测试数据目录
-        Path dataPath = Paths.get(DATA_DIR);
-        if (Files.exists(dataPath)) {
-            Files.walk(dataPath)
-                    .sorted((a, b) -> b.compareTo(a))
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            // 忽略删除失败
-                        }
-                    });
-        }
+        TestHelper.cleanupTestDir(DATA_DIR);
     }
 
     /**

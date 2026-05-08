@@ -2,14 +2,11 @@ package com.minimysql.storage.buffer;
 
 import com.minimysql.storage.page.DataPage;
 import com.minimysql.storage.page.Page;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,11 +26,15 @@ class BufferPoolTest {
     private BufferPool bufferPool;
 
     private static final int TABLE_ID = 0;
+    private static final String TEST_DATA_DIR = "test_bufferpool";
 
     @BeforeEach
     void setUp() {
+        // 清理之前的测试数据
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
+
         // 创建小缓冲池(只有3页),方便测试LRU淘汰
-        bufferPool = new BufferPool(3);
+        bufferPool = new BufferPool(3, TEST_DATA_DIR);
     }
 
     @AfterEach
@@ -42,22 +43,7 @@ class BufferPoolTest {
         bufferPool.clear();
 
         // 删除测试数据文件
-        try {
-            Path dataDir = Path.of("data");
-            if (Files.exists(dataDir)) {
-                Files.walk(dataDir)
-                        .sorted((a, b) -> b.compareTo(a)) // 反向排序,先删除文件
-                        .forEach(path -> {
-                            try {
-                                Files.delete(path);
-                            } catch (IOException e) {
-                                // Ignore
-                            }
-                        });
-            }
-        } catch (IOException e) {
-            // Ignore
-        }
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test

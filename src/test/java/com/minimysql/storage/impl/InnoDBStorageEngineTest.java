@@ -5,15 +5,12 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,37 +32,29 @@ class InnoDBStorageEngineTest {
     private StorageEngine engine;
 
     /**
-     * 数据目录路径
+     * 测试数据目录路径
      */
-    private static final String DATA_DIR = "data";
+    private static final String TEST_DATA_DIR = "test_innodb_storage";
 
     @BeforeEach
     void setUp() {
+        // 清理测试数据目录
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
+
         // 创建InnoDB存储引擎(缓冲池大小:100页，禁用元数据持久化以便测试)
         // 测试环境不需要持久化元数据，避免系统表干扰测试结果
-        engine = new InnoDBStorageEngine(100, false);
+        engine = new InnoDBStorageEngine(100, false, TEST_DATA_DIR);
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         // 关闭引擎
         if (engine != null) {
             engine.close();
         }
 
         // 清理测试数据目录
-        Path dataPath = Paths.get(DATA_DIR);
-        if (Files.exists(dataPath)) {
-            Files.walk(dataPath)
-                    .sorted((a, b) -> b.compareTo(a)) // 逆序删除(先删除文件再删除目录)
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            // 忽略删除失败
-                        }
-                    });
-        }
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     /**

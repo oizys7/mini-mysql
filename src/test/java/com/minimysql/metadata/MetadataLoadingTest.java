@@ -5,12 +5,12 @@ import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -34,7 +34,7 @@ class MetadataLoadingTest {
     @BeforeEach
     void setUp() {
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
 
         // 创建StorageEngine (启用元数据持久化，使用测试目录)
         storageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
@@ -49,7 +49,7 @@ class MetadataLoadingTest {
         }
 
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test
@@ -131,32 +131,5 @@ class MetadataLoadingTest {
         // 系统表不应该在metadataCache中
         assertNull(schemaManager.loadTableMetadata("SYS_TABLES"));
         assertNull(schemaManager.loadTableMetadata("SYS_COLUMNS"));
-    }
-
-    /**
-     * 清理测试数据
-     */
-    private void cleanupTestData() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            deleteDirectory(dir);
-        }
-    }
-
-    /**
-     * 递归删除目录
-     */
-    private void deleteDirectory(File dir) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        dir.delete();
     }
 }
