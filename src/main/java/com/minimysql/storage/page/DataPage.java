@@ -98,7 +98,7 @@ public class DataPage implements Page {
      */
     public DataPage() {
         this.data = new byte[PAGE_SIZE];
-        this.pageId = -1;
+        this.pageId = 0;
         this.freeSpaceEnd = PAGE_SIZE;
         this.slotCount = 0;
 

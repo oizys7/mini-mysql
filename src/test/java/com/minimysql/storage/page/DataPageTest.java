@@ -28,7 +28,7 @@ class DataPageTest {
         assertEquals(0, page.getValidRowCount());
         // 自由空间应该接近16KB (减去页头11字节)
         assertTrue(page.getFreeSpace() > 16000);
-        assertEquals(-1, page.getPageId());
+        assertEquals(0, page.getPageId());
     }
 
     @Test

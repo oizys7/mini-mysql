@@ -64,8 +64,8 @@ public class BufferPool {
     /** 缓冲池大小(页数) */
     private final int poolSize;
 
-    /** LRU缓存:页号 → 页帧 */
-    private final LinkedHashMap<Integer, PageFrame> pageCache;
+    /** LRU缓存:复合键 → 页帧 */
+    private final LinkedHashMap<Long, PageFrame> pageCache;
 
     /** 缓冲池锁(保证并发安全) */
     private final ReentrantLock lock;
@@ -152,7 +152,7 @@ public class BufferPool {
 
         try {
             // 构造缓存键:id * 1M + pageId (简单避免冲突)
-            int cacheKey = id * 1_000_000 + pageId;
+            long cacheKey = (long) id * 1_000_000 + pageId;
 
             // 尝试从缓存获取
             PageFrame frame = pageCache.get(cacheKey);
@@ -205,7 +205,7 @@ public class BufferPool {
         lock.lock();
 
         try {
-            int cacheKey = id * 1_000_000 + pageId;
+            long cacheKey = (long) id * 1_000_000 + pageId;
 
             // 如果页已存在,抛出异常
             if (pageCache.containsKey(cacheKey)) {
@@ -218,8 +218,13 @@ public class BufferPool {
                 evictOnePage();
             }
 
-            // 创建新页
-            DataPage page = new DataPage();
+            // 根据用途创建正确的页类型
+            Page page;
+            if (isTableData) {
+                page = new DataPage();
+            } else {
+                page = new IndexPage();
+            }
             page.setPageId(pageId);
             PageFrame frame = new PageFrame(page);
 
@@ -252,7 +257,7 @@ public class BufferPool {
         lock.lock();
 
         try {
-            int cacheKey = tableId * 1_000_000 + pageId;
+            long cacheKey = (long) tableId * 1_000_000 + pageId;
             PageFrame frame = pageCache.get(cacheKey);
 
             if (frame != null) {
@@ -359,97 +364,58 @@ public class BufferPool {
     private PageFrame loadPageFromDisk(int id, int pageId, boolean isTableData) {
         Path filePath = isTableData ? getTableFilePath(id) : getIndexFilePath(id);
 
-        // DEBUG: 添加日志来跟踪文件读取
-        if (id < 0) {  // 系统表
-            System.err.println("DEBUG: Loading page from disk: " +
-                (isTableData ? "table" : "index") + "_" + id + ".db, pageId=" + pageId +
-                ", fileExists=" + Files.exists(filePath));
-        }
-
         try {
             if (!Files.exists(filePath)) {
-                // 文件不存在,返回空页
-                DataPage page = new DataPage();
-                page.setPageId(pageId);
-                PageFrame frame = new PageFrame(page);
-
-                if (isTableData) {
-                    frame.setTableId(id);
-                    frame.setClusteredIndex(true);
-                } else {
-                    frame.setIndexId(id);
-                    frame.setClusteredIndex(false);
-                }
-
-                return frame;
+                return createEmptyFrame(id, pageId, isTableData);
             }
 
-            // 读取文件
             byte[] fileData = Files.readAllBytes(filePath);
-
-            // 计算页在文件中的偏移量
             int offset = pageId * Page.PAGE_SIZE;
 
             if (offset + Page.PAGE_SIZE > fileData.length) {
-                // 文件不够大,返回空页
-                DataPage page = new DataPage();
-                page.setPageId(pageId);
-                PageFrame frame = new PageFrame(page);
-
-                if (isTableData) {
-                    frame.setTableId(id);
-                    frame.setClusteredIndex(true);
-                } else {
-                    frame.setIndexId(id);
-                    frame.setClusteredIndex(false);
-                }
-
-                return frame;
+                return createEmptyFrame(id, pageId, isTableData);
             }
 
-            // 提取页数据
+            // 从磁盘数据读取页类型，反序列化为正确的 Page 子类
             byte[] pageData = new byte[Page.PAGE_SIZE];
             System.arraycopy(fileData, offset, pageData, 0, Page.PAGE_SIZE);
 
-            // 根据页面的实际类型（PageType）来反序列化
-            // 聚簇索引的数据存储在 table_{tableId}.db，但页面类型可能是 INDEX_PAGE（B+树节点）
             Page page;
-            if (pageData.length > 0) {
-                // 读取页面类型（第一个字节）
-                byte pageTypeByte = pageData[0];
-                Page.PageType pageType = Page.PageType.fromCode(pageTypeByte);
+            byte pageTypeByte = pageData[0];
+            Page.PageType pageType = Page.PageType.fromCode(pageTypeByte);
 
-                if (pageType == Page.PageType.INDEX_PAGE) {
-                    // 聚簇索引的B+树节点
-                    page = new IndexPage();
-                    page.fromBytes(pageData);
-                } else {
-                    // 普通数据行
-                    page = new DataPage();
-                    page.fromBytes(pageData);
-                }
+            if (pageType == Page.PageType.INDEX_PAGE) {
+                page = new IndexPage();
+                page.fromBytes(pageData);
             } else {
-                // 空页，默认为 DataPage
                 page = new DataPage();
-                page.setPageId(pageId);
+                page.fromBytes(pageData);
             }
 
-            PageFrame frame = new PageFrame(page);
-
-            if (isTableData) {
-                frame.setTableId(id);
-                frame.setClusteredIndex(true);
-            } else {
-                frame.setIndexId(id);
-                frame.setClusteredIndex(false);
-            }
-
-            return frame;
+            return createFrame(page, id, pageId, isTableData);
 
         } catch (IOException e) {
             String type = isTableData ? "tableId" : "indexId";
             throw new RuntimeException("Failed to load page from disk: " + type + "=" + id + ", pageId=" + pageId, e);
         }
+    }
+
+    private PageFrame createEmptyFrame(int id, int pageId, boolean isTableData) {
+        Page page = isTableData ? new DataPage() : new IndexPage();
+        page.setPageId(pageId);
+        return createFrame(page, id, pageId, isTableData);
+    }
+
+    private PageFrame createFrame(Page page, int id, int pageId, boolean isTableData) {
+        PageFrame frame = new PageFrame(page);
+        if (isTableData) {
+            frame.setTableId(id);
+            frame.setClusteredIndex(true);
+        } else {
+            frame.setIndexId(id);
+            frame.setClusteredIndex(false);
+        }
+        return frame;
     }
 
     /**
@@ -467,31 +433,10 @@ public class BufferPool {
         int id = isTableData ? frame.getTableId() : frame.getIndexId();
         Path filePath = isTableData ? getTableFilePath(id) : getIndexFilePath(id);
 
-        // 检查 pageId 是否为负数（防御性编程）
         if (pageId < 0) {
-            // 尝试从 data 字段读取存储的 pageId（回退逻辑）
-            byte[] pageData = page.getData();
-            if (pageData.length >= 5) {  // 至少有 PageType(1) + PageId(4)
-                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(pageData);
-                buffer.position(1);  // 跳过PageType
-                int storedPageId = buffer.getInt();
-                if (storedPageId >= 0) {
-                    // 使用存储的 pageId
-                    pageId = storedPageId;
-                } else {
-                    // pageId 字段和存储的数据都是无效的，使用默认值 0
-                    logger.warn("Page has invalid pageId in both field and data. Using default pageId=0. pageType={}, {}/{}",
-                        page.getClass().getSimpleName(),
-                        isTableData ? "tableId" : "indexId", id);
-                    pageId = 0;
-                }
-            } else {
-                // data 太小，无法读取 pageId，使用默认值 0
-                logger.warn("Page data too small to read pageId. Using default pageId=0. pageType={}, {}/{}",
-                    page.getClass().getSimpleName(),
-                    isTableData ? "tableId" : "indexId", id);
-                pageId = 0;
-            }
+            logger.error("Page has invalid pageId={}. {}/{}. This is a bug - pageId must be non-negative.",
+                pageId, isTableData ? "tableId" : "indexId", id);
+            return;
         }
 
         try {
@@ -536,7 +481,7 @@ public class BufferPool {
      * 算法:遍历LinkedHashMap的entrySet,找到第一个可淘汰的页。
      */
     private void evictOnePage() {
-        for (Map.Entry<Integer, PageFrame> entry : pageCache.entrySet()) {
+        for (Map.Entry<Long, PageFrame> entry : pageCache.entrySet()) {
             PageFrame frame = entry.getValue();
 
             if (frame.isEvictable()) {

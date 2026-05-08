@@ -3,7 +3,6 @@ package com.minimysql.metadata;
 import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.index.ClusteredIndex;
 import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
@@ -247,9 +246,7 @@ public class SchemaManager {
      * 这样storageEngine.getTable()才能找到它们。
      */
     private void registerSystemTableToEngine(Table table) {
-        if (storageEngine instanceof InnoDBStorageEngine) {
-            ((InnoDBStorageEngine) storageEngine).registerSystemTable(table);
-        }
+        storageEngine.registerTable(table);
     }
 
     /**
@@ -375,12 +372,7 @@ public class SchemaManager {
      * 简化实现：假设是InnoDBStorageEngine
      */
     private BufferPool getBufferPoolFromEngine() {
-        // 简化实现：直接假设是InnoDBStorageEngine并访问其字段
-        // 实际应该通过接口方法获取
-        if (storageEngine instanceof InnoDBStorageEngine) {
-            return storageEngine.getBufferPool();
-        }
-        throw new RuntimeException("Unsupported storage engine type");
+        return storageEngine.getBufferPool();
     }
 
     /**
@@ -622,24 +614,15 @@ public class SchemaManager {
         Table table = new Table(metadata.getTableId(), metadata.getTableName(), columns);
 
         // 3. 打开表(初始化BufferPool和PageManager)
-        if (storageEngine instanceof InnoDBStorageEngine innodbEngine) {
-            // 获取BufferPool
-            BufferPool bufferPool = innodbEngine.getBufferPool();
+        BufferPool bufferPool = storageEngine.getBufferPool();
+        PageManager pageManager = storageEngine.getPageManager(metadata.getTableId());
 
-            // 获取Table的PageManager（管理 table_{tableId}.db 的页分配）
-            // 注意：PageManager 是 per-table 的，不是 per-index 的
-            // 聚簇索引的数据存储在表的数据文件中，和表共享同一个 PageManager
-            PageManager pageManager = innodbEngine.getPageManager(metadata.getTableId());
+        table.open(bufferPool, pageManager);
 
-            // 打开表
-            table.open(bufferPool, pageManager);
-
-            // 4. 创建聚簇索引(默认第一列为主键)
-            if (!columns.isEmpty()) {
-                ClusteredIndex clusteredIndex = innodbEngine.createClusteredIndex(table, 0); // 第一列为主键
-                table.setClusteredIndex(clusteredIndex);
-                clusteredIndex.setTable(table);
-            }
+        if (!columns.isEmpty()) {
+            ClusteredIndex clusteredIndex = storageEngine.createClusteredIndex(table, 0);
+            table.setClusteredIndex(clusteredIndex);
+            clusteredIndex.setTable(table);
         }
 
         return table;
@@ -653,9 +636,7 @@ public class SchemaManager {
      * @param table 表对象
      */
     private void registerTableToEngine(Table table) {
-        if (storageEngine instanceof InnoDBStorageEngine innodbEngine) {
-            innodbEngine.registerTable(table);
-        }
+        storageEngine.registerTable(table);
     }
 
     /**

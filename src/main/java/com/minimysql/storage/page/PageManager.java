@@ -1,5 +1,8 @@
 package com.minimysql.storage.page;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,6 +48,8 @@ import java.util.BitSet;
  */
 public class PageManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(PageManager.class);
+
     /** 默认数据目录 */
     private static final String DEFAULT_DATA_DIR = "data";
 
@@ -57,8 +62,8 @@ public class PageManager {
     /** 下一个将要分配的新页号 */
     private int nextPageId;
 
-    /** 空闲页集合(已释放的页号) */
-    private final Set<Integer> freePages;
+    /** 空闲页位图(已释放的页号) */
+    private final BitSet freePages;
 
     /**
      * 已分配页位图
@@ -93,7 +98,7 @@ public class PageManager {
         this.dataDir = dataDir;
         // 根节点(pageId=0)总是预留的，所以下一个新页从1开始
         this.nextPageId = 1;
-        this.freePages = new HashSet<>();
+        this.freePages = new BitSet();
         this.allocatedPages = new BitSet();
         // 根节点(pageId=0)总是已分配的，预先标记
         this.allocatedPages.set(0);
@@ -113,49 +118,32 @@ public class PageManager {
 
         Path metaPath = getMetadataFilePath(tableId);
 
-        // DEBUG: 对于系统表，输出更多信息
-        if (tableId < 0) {
-            System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                "metaPath=" + metaPath + ", exists=" + Files.exists(metaPath));
-        }
+        logger.debug("PageManager.load({}) - metaPath={}, exists={}",
+            tableId, metaPath, Files.exists(metaPath));
 
         if (!Files.exists(metaPath)) {
-            // 元数据文件不存在,视为首次启动
-            if (tableId < 0) {
-                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                    "metadata file does not exist, treating as first start");
-            }
+            logger.debug("PageManager.load({}) - metadata file does not exist, treating as first start", tableId);
             return;
         }
 
         try {
-            if (tableId < 0) {
-                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                    "reading metadata file, size=" + Files.size(metaPath));
-            }
             byte[] data = Files.readAllBytes(metaPath);
-
-            if (tableId < 0) {
-                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                    "parsing PageMetadata, data.length=" + data.length);
-            }
+            logger.debug("PageManager.load({}) - data.length={}", tableId, data.length);
 
             PageMetadata metadata = PageMetadata.fromBytes(data);
-
-            if (tableId < 0) {
-                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                    "parsed successfully, nextPageId=" + metadata.getNextPageId());
-            }
+            logger.debug("PageManager.load({}) - parsed, nextPageId={}", tableId, metadata.getNextPageId());
 
             // 恢复状态
             this.nextPageId = metadata.getNextPageId();
             this.freePages.clear();
-            this.freePages.addAll(metadata.getFreePages());
+            for (int pageId : metadata.getFreePages()) {
+                this.freePages.set(pageId);
+            }
 
             // 重建allocatedPages BitSet
             this.allocatedPages.clear();
             for (int i = 0; i < nextPageId; i++) {
-                if (!freePages.contains(i)) {
+                if (!freePages.get(i)) {
                     allocatedPages.set(i);
                 }
             }
@@ -167,11 +155,8 @@ public class PageManager {
                 this.allocatedPages.set(0);
             }
 
-            if (tableId < 0) {
-                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
-                    "loaded successfully, nextPageId=" + this.nextPageId +
-                    ", allocatedCount=" + allocatedPages.cardinality());
-            }
+            logger.debug("PageManager.load({}) - loaded, nextPageId={}, allocatedCount={}",
+                tableId, this.nextPageId, allocatedPages.cardinality());
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to load page metadata: tableId=" + tableId, e);
@@ -188,7 +173,11 @@ public class PageManager {
     public void save(int tableId) {
         this.tableId = tableId;
 
-        PageMetadata metadata = new PageMetadata(nextPageId, freePages);
+        Set<Integer> freePageSet = new HashSet<>();
+        for (int i = freePages.nextSetBit(0); i >= 0; i = freePages.nextSetBit(i + 1)) {
+            freePageSet.add(i);
+        }
+        PageMetadata metadata = new PageMetadata(nextPageId, freePageSet);
         byte[] data = metadata.toBytes();
 
         Path metaPath = getMetadataFilePath(tableId);
@@ -224,10 +213,9 @@ public class PageManager {
     public int allocatePage() {
         int pageId;
 
-        // 优先重用空闲页
         if (!freePages.isEmpty()) {
-            pageId = freePages.iterator().next();
-            freePages.remove(pageId);
+            pageId = freePages.nextSetBit(0);
+            freePages.clear(pageId);
         } else {
             // 分配新页号
             pageId = nextPageId++;
@@ -265,8 +253,7 @@ public class PageManager {
         // 从已分配集合移除
         allocatedPages.clear(pageId);
 
-        // 加入空闲集合
-        freePages.add(pageId);
+        freePages.set(pageId);
 
         // 自动保存
         if (tableId != -1) {  // -1 表示未初始化，其他值（包括负数）都是有效的 tableId
@@ -299,7 +286,7 @@ public class PageManager {
      * @return 空闲页数
      */
     public int getFreePageCount() {
-        return freePages.size();
+        return freePages.cardinality();
     }
 
     /**

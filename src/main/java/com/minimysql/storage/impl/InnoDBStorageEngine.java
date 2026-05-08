@@ -600,15 +600,7 @@ public class InnoDBStorageEngine implements StorageEngine {
             throw new IllegalArgumentException("Table cannot be null");
         }
 
-        String tableName = table.getTableName();
-
-        // 检查是否为系统表
-        if (SystemTables.isSystemTable(tableName)) {
-            throw new IllegalArgumentException("Use registerSystemTable() for system tables");
-        }
-
-        // 注册到tables映射
-        tables.put(tableName, table);
+        tables.put(table.getTableName(), table);
     }
 
     /**
@@ -672,19 +664,7 @@ public class InnoDBStorageEngine implements StorageEngine {
      * @param table 系统表实例
      */
     public void registerSystemTable(Table table) {
-        if (table == null) {
-            throw new IllegalArgumentException("Table cannot be null");
-        }
-
-        String tableName = table.getTableName();
-
-        // 检查是否为系统表
-        if (!SystemTables.isSystemTable(tableName)) {
-            throw new IllegalArgumentException("Can only register system tables");
-        }
-
-        // 注册到tables映射
-        tables.put(tableName, table);
+        registerTable(table);
     }
 
     /**

@@ -2,6 +2,8 @@ package com.minimysql.storage;
 
 import com.minimysql.metadata.SchemaManager;
 import com.minimysql.storage.buffer.BufferPool;
+import com.minimysql.storage.index.ClusteredIndex;
+import com.minimysql.storage.page.PageManager;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Table;
 
@@ -159,4 +161,30 @@ public interface StorageEngine {
      * 关闭后不能再创建或操作表。
      */
     void close();
+
+    /**
+     * 注册表到引擎内部映射
+     *
+     * 用于 SchemaManager 加载元数据后重建 Table 对象的注册。
+     *
+     * @param table 表实例
+     */
+    void registerTable(Table table);
+
+    /**
+     * 获取指定表的页管理器
+     *
+     * @param tableId 表ID
+     * @return PageManager实例
+     */
+    PageManager getPageManager(int tableId);
+
+    /**
+     * 为表创建聚簇索引
+     *
+     * @param table 表实例
+     * @param primaryKeyIndex 主键列索引
+     * @return 聚簇索引实例
+     */
+    ClusteredIndex createClusteredIndex(Table table, int primaryKeyIndex);
 }
