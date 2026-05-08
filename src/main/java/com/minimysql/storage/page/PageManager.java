@@ -347,7 +347,7 @@ public class PageManager {
                 "tableId=" + tableId +
                 ", nextPageId=" + nextPageId +
                 ", allocatedPages=" + allocatedPages.cardinality() +
-                ", freePages=" + freePages.size() +
+                ", freePages=" + freePages.cardinality() +
                 '}';
     }
 }

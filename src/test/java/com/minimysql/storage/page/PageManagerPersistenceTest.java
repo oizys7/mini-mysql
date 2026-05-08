@@ -14,10 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * PageManager持久化测试
  *
- * 测试PageManager的元数据持久化功能:
- * - 保存和加载状态
- * - 重启后状态恢复
- * - BitSet内存优化验证
+ * 注意: PageManager构造器预分配page 0给根节点
+ * - 初始: allocatedPages={0}, nextPageId=1
+ * - allocatePage()首次返回1
  */
 @DisplayName("PageManager - 元数据持久化测试")
 class PageManagerPersistenceTest {
@@ -26,13 +25,11 @@ class PageManagerPersistenceTest {
 
     @BeforeEach
     void setUp() {
-        // 清理测试数据
         cleanupTestData();
     }
 
     @AfterEach
     void tearDown() {
-        // 清理测试数据
         cleanupTestData();
     }
 
@@ -46,14 +43,14 @@ class PageManagerPersistenceTest {
     }
 
     @Test
-    @DisplayName("首次启动:元数据文件不存在时应该初始化为空")
+    @DisplayName("首次启动:元数据文件不存在时应该有预分配的根节点页")
     void testFirstStartup() {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        assertEquals(0, manager.getAllocatedPageCount());
+        assertEquals(1, manager.getAllocatedPageCount()); // page 0 pre-allocated
         assertEquals(0, manager.getFreePageCount());
-        assertEquals(0, manager.getNextPageId());
+        assertEquals(1, manager.getNextPageId());
     }
 
     @Test
@@ -62,30 +59,27 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配3页
-        int page0 = manager.allocatePage();
         int page1 = manager.allocatePage();
         int page2 = manager.allocatePage();
+        int page3 = manager.allocatePage();
 
-        assertEquals(0, page0);
-        assertEquals(1, page1);
+        assertEquals(1, page1); // first allocatable page (0 is reserved)
         assertEquals(2, page2);
-        assertEquals(3, manager.getAllocatedPageCount());
+        assertEquals(3, page3);
+        assertEquals(4, manager.getAllocatedPageCount()); // pages 0,1,2,3
 
-        // 创建新的manager,模拟重启
         PageManager newManager = new PageManager();
         newManager.load(TEST_TABLE_ID);
 
-        // 验证状态已恢复
-        assertEquals(3, newManager.getAllocatedPageCount());
-        assertEquals(3, newManager.getNextPageId());
+        assertEquals(4, newManager.getAllocatedPageCount());
+        assertEquals(4, newManager.getNextPageId());
         assertEquals(0, newManager.getFreePageCount());
 
-        // 验证已分配的页
         assertTrue(newManager.isPageAllocated(0));
         assertTrue(newManager.isPageAllocated(1));
         assertTrue(newManager.isPageAllocated(2));
-        assertFalse(newManager.isPageAllocated(3));
+        assertTrue(newManager.isPageAllocated(3));
+        assertFalse(newManager.isPageAllocated(4));
     }
 
     @Test
@@ -94,34 +88,30 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配5页
         for (int i = 0; i < 5; i++) {
-            manager.allocatePage();
+            manager.allocatePage(); // allocates pages 1-5
         }
 
-        // 释放页1、2、3
         manager.freePage(1);
         manager.freePage(2);
         manager.freePage(3);
 
-        assertEquals(2, manager.getAllocatedPageCount());
-        assertEquals(3, manager.getFreePageCount());
+        assertEquals(3, manager.getAllocatedPageCount()); // pages 0,4,5
+        assertEquals(3, manager.getFreePageCount());       // pages 1,2,3
 
-        // 模拟重启
         PageManager newManager = new PageManager();
         newManager.load(TEST_TABLE_ID);
 
-        // 验证状态已恢复
-        assertEquals(2, newManager.getAllocatedPageCount());
+        assertEquals(3, newManager.getAllocatedPageCount());
         assertEquals(3, newManager.getFreePageCount());
-        assertEquals(5, newManager.getNextPageId());
+        assertEquals(6, newManager.getNextPageId());
 
-        // 验证哪些页已分配
-        assertTrue(newManager.isPageAllocated(0));
-        assertFalse(newManager.isPageAllocated(1)); // 已释放
-        assertFalse(newManager.isPageAllocated(2)); // 已释放
-        assertFalse(newManager.isPageAllocated(3)); // 已释放
+        assertTrue(newManager.isPageAllocated(0));  // pre-allocated root
+        assertFalse(newManager.isPageAllocated(1));  // freed
+        assertFalse(newManager.isPageAllocated(2));  // freed
+        assertFalse(newManager.isPageAllocated(3));  // freed
         assertTrue(newManager.isPageAllocated(4));
+        assertTrue(newManager.isPageAllocated(5));
     }
 
     @Test
@@ -130,23 +120,19 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配3页
-        manager.allocatePage(); // 0
         manager.allocatePage(); // 1
         manager.allocatePage(); // 2
+        manager.allocatePage(); // 3
 
-        // 释放页1
-        manager.freePage(1);
+        manager.freePage(2);
 
-        // 模拟重启
         PageManager newManager = new PageManager();
         newManager.load(TEST_TABLE_ID);
 
-        // 分配新页,应该重用页1
         int newPage = newManager.allocatePage();
 
-        assertEquals(1, newPage);
-        assertEquals(3, newManager.getAllocatedPageCount());
+        assertEquals(2, newPage); // reused
+        assertEquals(4, newManager.getAllocatedPageCount()); // pages 0,1,2,3
         assertEquals(0, newManager.getFreePageCount());
     }
 
@@ -156,56 +142,45 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配一些页
-        manager.allocatePage(); // 0
         manager.allocatePage(); // 1
         manager.allocatePage(); // 2
+        manager.allocatePage(); // 3
 
-        // 释放页1
-        manager.freePage(1);
+        manager.freePage(2);
 
-        // 读取元数据文件
         Path metaPath = Path.of("data", "table_" + TEST_TABLE_ID + ".pagemeta");
         assertTrue(Files.exists(metaPath));
 
         byte[] data = Files.readAllBytes(metaPath);
         PageMetadata metadata = PageMetadata.fromBytes(data);
 
-        // 验证元数据内容
-        assertEquals(3, metadata.getNextPageId());
+        assertEquals(4, metadata.getNextPageId());
         assertEquals(1, metadata.getFreePages().size());
-        assertTrue(metadata.getFreePages().contains(1));
+        assertTrue(metadata.getFreePages().contains(2));
     }
 
     @Test
     @DisplayName("BitSet内存占用应该远小于HashSet")
     @SuppressWarnings("unused")
     void testBitSetMemoryEfficiency() {
-        // 注意:不加载tableId,避免频繁写磁盘
         PageManager manager = new PageManager();
 
-        // 分配10000页
         for (int i = 0; i < 10000; i++) {
-            manager.allocatePage();
+            manager.allocatePage(); // pages 1-10000
         }
 
-        // 如果使用HashSet<Integer>,10000个Integer对象约占用360KB
-        // 使用BitSet,10000个bit约占用1.25KB
-        // 我们无法直接测量内存占用,但可以验证功能正确
+        assertEquals(10001, manager.getAllocatedPageCount()); // page 0 + 10000
 
-        assertEquals(10000, manager.getAllocatedPageCount());
-
-        // 释放一半的页
-        for (int i = 0; i < 5000; i++) {
-            manager.freePage(i * 2);
+        // free even-indexed pages (skip page 0 - root)
+        for (int i = 2; i <= 10000; i += 2) {
+            manager.freePage(i);
         }
 
-        assertEquals(5000, manager.getAllocatedPageCount());
+        assertEquals(5001, manager.getAllocatedPageCount()); // page 0 + 5000 odd pages
         assertEquals(5000, manager.getFreePageCount());
 
-        // 验证BitSet的功能
-        for (int i = 0; i < 10000; i++) {
-            boolean expected = (i % 2 != 0); // 奇数页已分配
+        for (int i = 1; i <= 10000; i++) {
+            boolean expected = (i % 2 != 0); // odd pages allocated
             assertEquals(expected, manager.isPageAllocated(i),
                     "Page " + i + " allocation status mismatch");
         }
@@ -214,30 +189,26 @@ class PageManagerPersistenceTest {
     @Test
     @DisplayName("大规模分配测试BitSet性能")
     void testLargeScaleAllocation() {
-        // 注意:此测试不加载tableId,避免频繁写磁盘
         PageManager manager = new PageManager();
 
-        final int pageCount = 100000; // 10万页
+        final int pageCount = 100000;
 
-        // 分配10万页
         long startAlloc = System.nanoTime();
         for (int i = 0; i < pageCount; i++) {
             manager.allocatePage();
         }
         long allocTime = System.nanoTime() - startAlloc;
 
-        assertEquals(pageCount, manager.getAllocatedPageCount());
+        assertEquals(pageCount + 1, manager.getAllocatedPageCount()); // +1 for page 0
 
-        // 释放一半
         long startFree = System.nanoTime();
         for (int i = 0; i < pageCount / 2; i++) {
-            manager.freePage(i * 2);
+            manager.freePage(i * 2 + 2); // free even pages starting from 2
         }
-        long freeTime = System.nanoTime() - startFree;
+        long freeTime = System.nanoTime() - startAlloc;
 
-        assertEquals(pageCount / 2, manager.getAllocatedPageCount());
+        assertEquals(pageCount / 2 + 1, manager.getAllocatedPageCount()); // page 0 + odd pages
 
-        // 断言:应该在合理时间内完成(1秒内)
         assertTrue(allocTime < 1_000_000_000, "Allocation too slow");
         assertTrue(freeTime < 1_000_000_000, "Free too slow");
     }
@@ -248,28 +219,26 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配1000页
         for (int i = 0; i < 1000; i++) {
-            manager.allocatePage();
+            manager.allocatePage(); // pages 1-1000
         }
 
-        // 释放200页
-        for (int i = 0; i < 200; i++) {
-            manager.freePage(i);
+        for (int i = 1; i <= 200; i++) {
+            manager.freePage(i); // free pages 1-200 (not page 0)
         }
 
-        // 模拟重启
         PageManager newManager = new PageManager();
         newManager.load(TEST_TABLE_ID);
 
-        // 验证状态完全恢复
-        assertEquals(800, newManager.getAllocatedPageCount());
-        assertEquals(200, newManager.getFreePageCount());
-        assertEquals(1000, newManager.getNextPageId());
+        assertEquals(801, newManager.getAllocatedPageCount()); // page 0 + pages 201-1000 = 1 + 800
+        assertEquals(200, newManager.getFreePageCount());       // pages 1-200
+        assertEquals(1001, newManager.getNextPageId());
 
-        // 验证页分配状态
-        for (int i = 0; i < 1000; i++) {
-            boolean expected = (i >= 200); // 前200个已释放
+        for (int i = 0; i <= 1000; i++) {
+            boolean expected;
+            if (i == 0) expected = true;             // root page always allocated
+            else if (i >= 1 && i <= 200) expected = false; // freed
+            else expected = true;                    // allocated
             assertEquals(expected, newManager.isPageAllocated(i),
                     "Page " + i + " status mismatch after restore");
         }
@@ -281,53 +250,48 @@ class PageManagerPersistenceTest {
         PageManager manager = new PageManager();
         manager.load(TEST_TABLE_ID);
 
-        // 分配一些页
         for (int i = 0; i < 10; i++) {
             manager.allocatePage();
         }
 
-        assertEquals(10, manager.getAllocatedPageCount());
+        assertEquals(11, manager.getAllocatedPageCount()); // page 0 + 10
 
-        // 删除元数据
         manager.deleteMetadata();
 
-        // 创建新manager,应该为空
         PageManager newManager = new PageManager();
         newManager.load(TEST_TABLE_ID);
 
-        assertEquals(0, newManager.getAllocatedPageCount());
+        // deleteMetadata only works for tableId >= 0 (TEST_TABLE_ID=999)
+        // After deletion, file is gone → load keeps constructor state
+        assertEquals(1, newManager.getAllocatedPageCount()); // page 0 pre-allocated
         assertEquals(0, newManager.getFreePageCount());
     }
 
     @Test
     @DisplayName("多次重启应该保持状态一致性")
     void testMultipleRestarts() {
-        // 第一次启动
         PageManager manager1 = new PageManager();
         manager1.load(TEST_TABLE_ID);
 
         for (int i = 0; i < 5; i++) {
-            manager1.allocatePage();
+            manager1.allocatePage(); // pages 1-5
         }
-        manager1.freePage(2);
+        manager1.freePage(3);
 
-        // 第二次启动
         PageManager manager2 = new PageManager();
         manager2.load(TEST_TABLE_ID);
 
-        assertEquals(4, manager2.getAllocatedPageCount());
-        assertEquals(1, manager2.getFreePageCount());
+        assertEquals(5, manager2.getAllocatedPageCount()); // pages 0,1,2,4,5
+        assertEquals(1, manager2.getFreePageCount());       // page 3
 
-        // 再分配2页
-        manager2.allocatePage(); // 应该重用页2
-        manager2.allocatePage(); // 新页5
+        manager2.allocatePage(); // reuse page 3
+        manager2.allocatePage(); // new page 6
 
-        // 第三次启动
         PageManager manager3 = new PageManager();
         manager3.load(TEST_TABLE_ID);
 
-        assertEquals(6, manager3.getAllocatedPageCount());
+        assertEquals(7, manager3.getAllocatedPageCount()); // pages 0,1,2,3,4,5,6
         assertEquals(0, manager3.getFreePageCount());
-        assertEquals(6, manager3.getNextPageId());
+        assertEquals(7, manager3.getNextPageId());
     }
 }

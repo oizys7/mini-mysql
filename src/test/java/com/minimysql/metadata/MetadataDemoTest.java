@@ -1,5 +1,6 @@
 package com.minimysql.metadata;
 
+import com.minimysql.CommonConstant;
 import com.minimysql.storage.StorageEngine;
 import com.minimysql.storage.impl.InnoDBStorageEngine;
 import com.minimysql.storage.table.Column;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,11 +25,14 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MetadataDemoTest {
 
+    private static final String TEST_DATA_DIR = CommonConstant.DATA_PREFIX + "/test_metadata_demo";
+
     private StorageEngine storageEngine;
 
     @BeforeEach
     public void setUp() {
-        storageEngine = new InnoDBStorageEngine(100, true);
+        cleanupTestDir();
+        storageEngine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
     }
 
     @AfterEach
@@ -35,6 +40,28 @@ public class MetadataDemoTest {
         if (storageEngine != null) {
             storageEngine.close();
         }
+        cleanupTestDir();
+    }
+
+    private void cleanupTestDir() {
+        File dir = new File(TEST_DATA_DIR);
+        if (dir.exists()) {
+            deleteDirectory(dir);
+        }
+    }
+
+    private void deleteDirectory(File directory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+        directory.delete();
     }
 
     @Test

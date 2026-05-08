@@ -33,11 +33,11 @@ public class SchemaManagerTest {
     private static final String TEST_METADATA_DIR = getTestMetadataDir();
 
     /**
-     * 获取测试元数据目录的绝对路径
+     * 获取测试元数据目录的相对路径
+     * Note: InnoDBStorageEngine会自动加上CommonConstant.DATA_PREFIX前缀
      */
     private static String getTestMetadataDir() {
-        String workingDir = System.getProperty("user.dir");
-        return workingDir + CommonConstant.DATA_PREFIX + "/test_metadata";
+        return "test_metadata";
     }
 
     @BeforeEach
@@ -45,8 +45,8 @@ public class SchemaManagerTest {
         // 清理测试目录
         cleanupTestDir();
 
-        // 创建存储引擎(启用元数据持久化)
-        storageEngine = new InnoDBStorageEngine(100, true);
+        // 创建存储引擎(启用元数据持久化，使用测试目录)
+        storageEngine = new InnoDBStorageEngine(100, true, TEST_METADATA_DIR);
 
         // 使用引擎内部的SchemaManager
         schemaManager = storageEngine.getSchemaManager();
@@ -261,19 +261,25 @@ public class SchemaManagerTest {
     @Test
     @DisplayName("重启后元数据持久化")
     public void testMetadataPersistenceAcrossRestarts() throws Exception {
-        // 第一次启动：创建表
-        List<Column> columns = Arrays.asList(
+        // 第一次启动：创建两个表
+        List<Column> userColumns = Arrays.asList(
+                new Column("id", DataType.INT, false),
+                new Column("name", DataType.VARCHAR, 100, true),
+                new Column("age", DataType.INT, false)
+        );
+        int usersTableId = schemaManager.createTable("users", userColumns);
+
+        List<Column> postColumns = Arrays.asList(
                 new Column("id", DataType.INT, false),
                 new Column("title", DataType.VARCHAR, 200, false)
         );
-
-        int originalTableId = schemaManager.createTable("posts", columns);
+        int postsTableId = schemaManager.createTable("posts", postColumns);
 
         // 关闭存储引擎（会自动关闭SchemaManager）
         storageEngine.close();
 
         // 第二次启动：重新创建存储引擎
-        storageEngine = new InnoDBStorageEngine(100, true);
+        storageEngine = new InnoDBStorageEngine(100, true, TEST_METADATA_DIR);
 
         // 使用引擎内部的SchemaManager（避免创建独立的实例）
         schemaManager = storageEngine.getSchemaManager();
@@ -283,9 +289,9 @@ public class SchemaManagerTest {
         assertNotNull(storageEngine.getTable(SystemTables.SYS_TABLES));
         assertNotNull(storageEngine.getTable(SystemTables.SYS_COLUMNS));
 
-        // 验证业务表元数据已加载（功能已完善）
+        // 验证业务表元数据已加载
         TableMetadata usersMetadata = schemaManager.loadTableMetadata("users");
-        assertNotNull(usersMetadata, "Business table metadata should be loaded");
+        assertNotNull(usersMetadata, "Users table metadata should be loaded");
         assertEquals("users", usersMetadata.getTableName());
         assertEquals(3, usersMetadata.getColumns().size());
 
@@ -293,5 +299,10 @@ public class SchemaManagerTest {
         TableMetadata postsMetadata = schemaManager.loadTableMetadata("posts");
         assertNotNull(postsMetadata, "Posts table metadata should be loaded");
         assertEquals("posts", postsMetadata.getTableName());
+        assertEquals(2, postsMetadata.getColumns().size());
+
+        // 验证table ID保持不变
+        assertEquals(usersTableId, usersMetadata.getTableId());
+        assertEquals(postsTableId, postsMetadata.getTableId());
     }
 }

@@ -34,12 +34,11 @@ public class MetadataPersistenceIntegrationTest {
     private StorageEngine storageEngine;
 
     /**
-     * 获取测试数据目录的绝对路径
+     * 获取测试数据目录的相对路径
+     * Note: InnoDBStorageEngine会自动加上CommonConstant.DATA_PREFIX前缀
      */
     private static String getTestDataDir() {
-        // 获取当前工作目录（项目根目录）
-        String workingDir = System.getProperty("user.dir");
-        return workingDir + CommonConstant.DATA_PREFIX+ "/test_integration";
+        return "test_integration";
     }
 
     @BeforeEach

@@ -36,8 +36,8 @@ class MetadataLoadingTest {
         // 清理测试数据
         cleanupTestData();
 
-        // 创建StorageEngine (启用元数据持久化)
-        storageEngine = new InnoDBStorageEngine(10, true);
+        // 创建StorageEngine (启用元数据持久化，使用测试目录)
+        storageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
         schemaManager = new SchemaManager(storageEngine);
     }
 
@@ -103,7 +103,7 @@ class MetadataLoadingTest {
         storageEngine.close();
 
         // 第二轮：重新创建StorageEngine和SchemaManager
-        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true);
+        StorageEngine newStorageEngine = new InnoDBStorageEngine(10, true, TEST_DATA_DIR);
         SchemaManager newSchemaManager = new SchemaManager(newStorageEngine);
 
         try {

@@ -122,35 +122,25 @@ public abstract class BPlusTree implements Index {
      * 否则创建新的根节点(叶子节点)。
      */
     private void loadOrCreate() {
-        // 聚簇索引使用 tableId（和Table共享PageManager），二级索引使用 indexId
         int pageManagerId = isClustered ? getTableId() : indexId;
         pageManager.load(pageManagerId);
 
-        int allocatedCount = pageManager.getAllocatedPageCount();
-        logger.debug("BPlusTree[{}] loadOrCreate() - 已分配页数: {}, nextPageId: {}",
-            indexId, allocatedCount, pageManager.getNextPageId());
-
         logger.debug("BPlusTree[{}] loadOrCreate() - pageManagerId={}, allocatedCount={}, nextPageId={}",
-            indexId, pageManagerId, allocatedCount, pageManager.getNextPageId());
+            indexId, pageManagerId, pageManager.getAllocatedPageCount(), pageManager.getNextPageId());
 
-        if (allocatedCount == 0) {
-            // 创建新索引:分配根节点(叶子节点)
+        // 检查根页是否有有效的 B+Tree 数据来决定创建还是加载
+        BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
+        if (root.getKeyCount() == 0 && root.getPageId() < 0) {
+            // 空节点 → 新索引，创建根
             logger.debug("BPlusTree[{}] 创建新索引", indexId);
-            BPlusTreeNode root = createRootNode();
+            root = createRootNode();
             root.setPageId(ROOT_PAGE_ID);
-
-            // 持久化根节点
             saveNode(root);
-
             this.height = 1;
         } else {
-            // 加载现有索引:从页0读取根节点
-            logger.debug("BPlusTree[{}] 加载现有索引", indexId);
-            BPlusTreeNode root = loadNode(ROOT_PAGE_ID);
-            logger.debug("BPlusTree[{}] 根节点: pageId={}, keyCount={}, isLeaf={}",
-                indexId, root.getPageId(), root.getKeyCount(), root.isLeaf());
-
-            // 通过遍历计算树的实际高度
+            // 有效节点 → 加载现有索引
+            logger.debug("BPlusTree[{}] 加载现有索引, root: pageId={}, keyCount={}",
+                indexId, root.getPageId(), root.getKeyCount());
             this.height = calculateHeight(root);
             logger.debug("BPlusTree[{}] 树高度: {}", indexId, height);
         }

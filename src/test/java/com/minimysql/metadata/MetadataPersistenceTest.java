@@ -69,7 +69,7 @@ public class MetadataPersistenceTest {
         // ========== 第一阶段：创建表并插入数据 ==========
 
         // 1. 创建存储引擎（第一次启动）
-        StorageEngine engine1 = new InnoDBStorageEngine(100, true);
+        StorageEngine engine1 = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
 
         // 2. 创建业务表
         List<Column> columns = Arrays.asList(
@@ -108,22 +108,24 @@ public class MetadataPersistenceTest {
         // ========== 第二阶段：重新打开引擎 ==========
 
         // 6. 创建新的存储引擎实例（模拟重启）
-        StorageEngine engine2 = new InnoDBStorageEngine(100, true);
+        StorageEngine engine2 = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
 
         // 7. 验证系统表已自动创建
         assertTrue(engine2.tableExists(SystemTables.SYS_TABLES));
         assertTrue(engine2.tableExists(SystemTables.SYS_COLUMNS));
 
-        // 8. 尝试获取之前创建的表
-        // 注意：由于表数据存储在PageManager管理的文件中，
-        // 而PageManager的元数据（如nextPageId）可能没有持久化，
-        // 所以这里可能无法直接获取表。
-        // 这个测试主要验证系统表和元数据管理器的状态。
+        // 8. 验证业务表元数据已加载
+        assertTrue(engine2.tableExists("users"), "users table should be loaded from metadata");
 
-        // 验证引擎状态
-        assertEquals(2, engine2.getTableCount()); // 只有两个系统表
+        // 9. 验证引擎状态（2个系统表 + 1个业务表）
+        assertEquals(3, engine2.getTableCount());
 
-        // 9. 关闭引擎
+        // 10. 验证可以获取业务表
+        Table usersTable = engine2.getTable("users");
+        assertNotNull(usersTable, "users table should be accessible");
+        assertEquals("users", usersTable.getTableName());
+
+        // 11. 关闭引擎
         engine2.close();
     }
 
@@ -131,7 +133,7 @@ public class MetadataPersistenceTest {
     @DisplayName("全表扫描")
     public void testFullTableScan() {
         // 创建存储引擎
-        StorageEngine engine = new InnoDBStorageEngine(100, true);
+        StorageEngine engine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
 
         // 创建表
         List<Column> columns = Arrays.asList(
@@ -168,7 +170,7 @@ public class MetadataPersistenceTest {
     @DisplayName("系统表全表扫描")
     public void testSystemTablesFullScan() {
         // 创建存储引擎
-        StorageEngine engine = new InnoDBStorageEngine(100, true);
+        StorageEngine engine = new InnoDBStorageEngine(100, true, TEST_DATA_DIR);
 
         // 获取系统表
         Table sysTables = engine.getTable(SystemTables.SYS_TABLES);
