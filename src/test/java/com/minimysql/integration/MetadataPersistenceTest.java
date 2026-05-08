@@ -34,18 +34,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("元数据持久化和加载测试")
 class MetadataPersistenceTest {
 
-    private static final String TEST_DATA_DIR = getTestDataDir();
+    private static final String TEST_DATA_DIR = "/test_data_metadata_persistence";
 
     private StorageEngine storageEngine;
     private SQLParser parser;
 
-    /**
-     * 获取测试数据目录的绝对路径
-     */
-    private static String getTestDataDir() {
-        String workingDir = System.getProperty("user.dir");
-        return workingDir + CommonConstant.DATA_PREFIX + "/test_data_metadata_persistence";
-    }
 
     @BeforeEach
     void setUp() {

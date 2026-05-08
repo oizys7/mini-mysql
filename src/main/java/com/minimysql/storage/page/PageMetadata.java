@@ -1,6 +1,7 @@
 package com.minimysql.storage.page;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
@@ -33,8 +34,8 @@ import java.util.Set;
  */
 public class PageMetadata {
 
-    /** 魔数: "PGMT" (PageManager MeTadata) */
-    public static final int MAGIC = 0x50474d54;
+    /** 魔数: "TMGP" (Little Endian of "PGMT") */
+    public static final int MAGIC = 0x544d4750;
 
     /** 当前版本: 0x01 */
     public static final int VERSION = 0x01;
@@ -72,6 +73,7 @@ public class PageMetadata {
         }
 
         ByteBuffer buffer = ByteBuffer.wrap(data);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);  // 使用 Little Endian
 
         // 读取魔数
         int magic = buffer.getInt();
@@ -120,6 +122,7 @@ public class PageMetadata {
      */
     public byte[] toBytes() {
         ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE + freePages.size() * 4);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);  // 使用 Little Endian
 
         // 写入魔数
         buffer.putInt(MAGIC);

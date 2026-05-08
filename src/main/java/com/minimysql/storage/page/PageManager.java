@@ -91,9 +91,12 @@ public class PageManager {
      */
     public PageManager(String dataDir) {
         this.dataDir = dataDir;
-        this.nextPageId = 0;
+        // 根节点(pageId=0)总是预留的，所以下一个新页从1开始
+        this.nextPageId = 1;
         this.freePages = new HashSet<>();
         this.allocatedPages = new BitSet();
+        // 根节点(pageId=0)总是已分配的，预先标记
+        this.allocatedPages.set(0);
         this.tableId = -1;
     }
 
@@ -110,14 +113,39 @@ public class PageManager {
 
         Path metaPath = getMetadataFilePath(tableId);
 
+        // DEBUG: 对于系统表，输出更多信息
+        if (tableId < 0) {
+            System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                "metaPath=" + metaPath + ", exists=" + Files.exists(metaPath));
+        }
+
         if (!Files.exists(metaPath)) {
             // 元数据文件不存在,视为首次启动
+            if (tableId < 0) {
+                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                    "metadata file does not exist, treating as first start");
+            }
             return;
         }
 
         try {
+            if (tableId < 0) {
+                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                    "reading metadata file, size=" + Files.size(metaPath));
+            }
             byte[] data = Files.readAllBytes(metaPath);
+
+            if (tableId < 0) {
+                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                    "parsing PageMetadata, data.length=" + data.length);
+            }
+
             PageMetadata metadata = PageMetadata.fromBytes(data);
+
+            if (tableId < 0) {
+                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                    "parsed successfully, nextPageId=" + metadata.getNextPageId());
+            }
 
             // 恢复状态
             this.nextPageId = metadata.getNextPageId();
@@ -130,6 +158,19 @@ public class PageManager {
                 if (!freePages.contains(i)) {
                     allocatedPages.set(i);
                 }
+            }
+
+            // 特殊处理：如果nextPageId=0，说明是旧的元数据文件或首次创建
+            // 根节点(page 0)总是预留的，所以nextPageId应该是1，allocatedPages应该包含0
+            if (nextPageId == 0) {
+                this.nextPageId = 1;
+                this.allocatedPages.set(0);
+            }
+
+            if (tableId < 0) {
+                System.err.println("DEBUG PageManager.load(" + tableId + ") - " +
+                    "loaded successfully, nextPageId=" + this.nextPageId +
+                    ", allocatedCount=" + allocatedPages.cardinality());
             }
 
         } catch (IOException e) {
@@ -195,8 +236,9 @@ public class PageManager {
         // 记录为已分配
         allocatedPages.set(pageId);
 
-        // 自动保存
-        if (tableId >= 0) {
+        // 自动保存（系统表也需要保存，tableId可能是负数）
+        // 只有当tableId被设置时才保存（初始值为-1表示未设置）
+        if (tableId != -1) {
             save(tableId);
         }
 
@@ -227,7 +269,7 @@ public class PageManager {
         freePages.add(pageId);
 
         // 自动保存
-        if (tableId >= 0) {
+        if (tableId != -1) {  // -1 表示未初始化，其他值（包括负数）都是有效的 tableId
             save(tableId);
         }
     }

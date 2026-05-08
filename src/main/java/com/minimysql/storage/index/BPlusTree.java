@@ -2,7 +2,9 @@ package com.minimysql.storage.index;
 
 import com.minimysql.storage.buffer.BufferPool;
 import com.minimysql.storage.buffer.PageFrame;
+import com.minimysql.storage.page.DataPage;
 import com.minimysql.storage.page.IndexPage;
+import com.minimysql.storage.page.Page;
 import com.minimysql.storage.page.PageManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +81,18 @@ public abstract class BPlusTree implements Index {
     private int height;
 
     /**
+     * 获取表ID（仅对聚簇索引有效）
+     *
+     * 聚簇索引的 indexId = tableId * 100
+     * 二级索引的 indexId = tableId * 100 + indexNumber
+     *
+     * @return 表ID
+     */
+    private int getTableId() {
+        return indexId / 100;
+    }
+
+    /**
      * 创建B+树索引
      *
      * @param indexId 索引ID
@@ -108,11 +122,20 @@ public abstract class BPlusTree implements Index {
      * 否则创建新的根节点(叶子节点)。
      */
     private void loadOrCreate() {
-        pageManager.load(indexId);
+        // 聚簇索引使用 tableId（和Table共享PageManager），二级索引使用 indexId
+        int pageManagerId = isClustered ? getTableId() : indexId;
+        pageManager.load(pageManagerId);
 
         int allocatedCount = pageManager.getAllocatedPageCount();
         logger.debug("BPlusTree[{}] loadOrCreate() - 已分配页数: {}, nextPageId: {}",
             indexId, allocatedCount, pageManager.getNextPageId());
+
+        // DEBUG: 对于系统表，输出更多信息
+        if (indexId < 0) {
+            System.err.println("DEBUG BPlusTree[" + indexId + "] loadOrCreate() - " +
+                "pageManagerId=" + pageManagerId +
+                ", allocatedCount=" + allocatedCount + ", nextPageId=" + pageManager.getNextPageId());
+        }
 
         if (allocatedCount == 0) {
             // 创建新索引:分配根节点(叶子节点)
@@ -978,23 +1001,26 @@ public abstract class BPlusTree implements Index {
      * @return 节点对象
      */
     private BPlusTreeNode loadNode(int pageId) {
-        PageFrame frame = bufferPool.getPage(indexId, pageId);
+        // 聚簇索引使用表数据文件，二级索引使用索引数据文件
+        PageFrame frame = isClustered
+            ? bufferPool.getPage(getTableId(), pageId)
+            : bufferPool.getIndexPage(indexId, pageId);
         frame.pin();
 
         try {
-            IndexPage indexPage = (IndexPage) frame.getPage();
+            Page page = frame.getPage();
 
             // 检查页是否已初始化(通过Magic Number判断)
-            byte[] pageData = indexPage.getData();
+            byte[] pageData = page.getData();
 
-            // IndexPage布局: [PageType(1) | PageId(4) | Reserved(7) | NodeData(...)]
-            // BPlusTreeNode的Magic Number在NodeData开始处(偏移量12)
+            // Page布局: [PageType(1) | PageId(4) | Reserved(7) | Data(...)]
+            // Magic Number在Data开始处(偏移量12)
             if (pageData.length < IndexPage.HEADER_SIZE + 4) {
                 // 页未初始化,返回空节点
                 return new BPlusTreeNode(true);
             }
 
-            // 读取Magic Number判断是否为B+树节点(跳过IndexPage页头)
+            // 读取Magic Number判断是否为B+树节点(跳过页头)
             java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(pageData);
             buffer.position(IndexPage.HEADER_SIZE); // 跳过页头
             int magic = buffer.getInt();
@@ -1004,7 +1030,27 @@ public abstract class BPlusTree implements Index {
                 return new BPlusTreeNode(true);
             }
 
+            // 页有B+树节点数据
+            // 如果页是DataPage，需要转换为IndexPage
+            if (page instanceof DataPage) {
+                logger.debug("BPlusTree[{}] Converting DataPage to IndexPage at pageId={}",
+                    indexId, pageId);
+                IndexPage indexPage = new IndexPage();
+                indexPage.fromBytes(pageData);  // 从DataPage的数据恢复
+                indexPage.setPageId(pageId);
+                frame.setPage(indexPage);
+                return indexPage.getNode();
+            }
+
+            // 页应该是IndexPage
+            if (!(page instanceof IndexPage)) {
+                logger.error("BPlusTree[{}] Unexpected page type at pageId={}: {}",
+                    indexId, pageId, page.getClass().getSimpleName());
+                return new BPlusTreeNode(true);
+            }
+
             // 从IndexPage获取节点(IndexPage会反序列化)
+            IndexPage indexPage = (IndexPage) page;
             BPlusTreeNode node = indexPage.getNode();
             node.setPageId(pageId);
 
@@ -1023,13 +1069,18 @@ public abstract class BPlusTree implements Index {
         int pageId = node.getPageId();
 
         // 获取页帧(如果不存在则创建)
+        // 聚簇索引使用表数据文件，二级索引使用索引数据文件
         PageFrame frame;
         try {
             // 尝试获取已存在的页
-            frame = bufferPool.getPage(indexId, pageId);
+            frame = isClustered
+                ? bufferPool.getPage(getTableId(), pageId)
+                : bufferPool.getIndexPage(indexId, pageId);
         } catch (IllegalArgumentException e) {
             // 页不存在,创建新页
-            frame = bufferPool.newPage(indexId, pageId);
+            frame = isClustered
+                ? bufferPool.newPage(getTableId(), pageId)
+                : bufferPool.newIndexPage(indexId, pageId);
         }
 
         frame.pin();

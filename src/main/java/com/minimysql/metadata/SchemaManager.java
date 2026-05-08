@@ -359,17 +359,9 @@ public class SchemaManager {
             table.setClusteredIndex(clusteredIndex);
             clusteredIndex.setTable(table);
 
-            // 强制保存索引的PageManager元数据
-            // 确保重启后能正确加载系统表
-            try {
-                // 获取聚簇索引的PageManager并保存元数据
-                // 聚簇索引的indexId = tableId * 100
-                PageManager indexPageManager = clusteredIndex.getPageManager();
-                int indexId = tableId * 100;
-                indexPageManager.save(indexId);
-            } catch (Exception e) {
-                // 忽略保存错误（可能索引还没有分配页）
-            }
+            // 保存 PageManager 元数据（即使没有分配新页，也要标记根节点已存在）
+            // 聚簇索引和 Table 共享 PageManager，使用 tableId 而不是 indexId
+            pageManager.save(tableId);
 
             return table;
         } catch (Exception e) {
@@ -631,8 +623,12 @@ public class SchemaManager {
 
         // 3. 打开表(初始化BufferPool和PageManager)
         if (storageEngine instanceof InnoDBStorageEngine innodbEngine) {
-            // 获取BufferPool和PageManager
+            // 获取BufferPool
             BufferPool bufferPool = innodbEngine.getBufferPool();
+
+            // 获取Table的PageManager（管理 table_{tableId}.db 的页分配）
+            // 注意：PageManager 是 per-table 的，不是 per-index 的
+            // 聚簇索引的数据存储在表的数据文件中，和表共享同一个 PageManager
             PageManager pageManager = innodbEngine.getPageManager(metadata.getTableId());
 
             // 打开表

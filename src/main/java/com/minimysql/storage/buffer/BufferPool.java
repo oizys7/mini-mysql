@@ -1,6 +1,7 @@
 package com.minimysql.storage.buffer;
 
 import com.minimysql.storage.page.DataPage;
+import com.minimysql.storage.page.IndexPage;
 import com.minimysql.storage.page.Page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +115,7 @@ public class BufferPool {
     }
 
     /**
-     * 获取页
+     * 获取表数据页（用于聚簇索引）
      *
      * 如果页在缓存中,直接返回。
      * 如果页不在缓存中,从磁盘读取并加入缓存。
@@ -124,11 +125,34 @@ public class BufferPool {
      * @return 页帧
      */
     public PageFrame getPage(int tableId, int pageId) {
+        return getPageInternal(tableId, pageId, true);
+    }
+
+    /**
+     * 获取索引数据页（用于二级索引）
+     *
+     * @param indexId 索引ID
+     * @param pageId 页号
+     * @return 页帧
+     */
+    public PageFrame getIndexPage(int indexId, int pageId) {
+        return getPageInternal(indexId, pageId, false);
+    }
+
+    /**
+     * 内部方法：获取页
+     *
+     * @param id 表ID或索引ID
+     * @param pageId 页号
+     * @param isTableData true表示表数据，false表示索引数据
+     * @return 页帧
+     */
+    private PageFrame getPageInternal(int id, int pageId, boolean isTableData) {
         lock.lock();
 
         try {
-            // 构造缓存键:tableId * 1M + pageId (简单避免冲突)
-            int cacheKey = tableId * 1_000_000 + pageId;
+            // 构造缓存键:id * 1M + pageId (简单避免冲突)
+            int cacheKey = id * 1_000_000 + pageId;
 
             // 尝试从缓存获取
             PageFrame frame = pageCache.get(cacheKey);
@@ -140,7 +164,7 @@ public class BufferPool {
                 }
 
                 // 从磁盘读取
-                frame = loadPageFromDisk(tableId, pageId);
+                frame = loadPageFromDisk(id, pageId, isTableData);
                 pageCache.put(cacheKey, frame);
             }
 
@@ -151,7 +175,7 @@ public class BufferPool {
     }
 
     /**
-     * 创建新页
+     * 创建新页（用于表数据）
      *
      * 分配一个新的页,用于插入新数据。
      *
@@ -160,14 +184,33 @@ public class BufferPool {
      * @return 页帧
      */
     public PageFrame newPage(int tableId, int pageId) {
+        return newPageInternal(tableId, pageId, true);
+    }
+
+    /**
+     * 创建新索引页（用于索引数据）
+     *
+     * @param indexId 索引ID
+     * @param pageId 页号
+     * @return 页帧
+     */
+    public PageFrame newIndexPage(int indexId, int pageId) {
+        return newPageInternal(indexId, pageId, false);
+    }
+
+    /**
+     * 内部方法：创建新页
+     */
+    private PageFrame newPageInternal(int id, int pageId, boolean isTableData) {
         lock.lock();
 
         try {
-            int cacheKey = tableId * 1_000_000 + pageId;
+            int cacheKey = id * 1_000_000 + pageId;
 
             // 如果页已存在,抛出异常
             if (pageCache.containsKey(cacheKey)) {
-                throw new IllegalArgumentException("Page already exists: tableId=" + tableId + ", pageId=" + pageId);
+                String type = isTableData ? "tableId" : "indexId";
+                throw new IllegalArgumentException("Page already exists: " + type + "=" + id + ", pageId=" + pageId);
             }
 
             // 如果缓存已满,淘汰一页
@@ -179,7 +222,15 @@ public class BufferPool {
             DataPage page = new DataPage();
             page.setPageId(pageId);
             PageFrame frame = new PageFrame(page);
-            frame.setTableId(tableId);  // 设置tableId
+
+            // 设置ID
+            if (isTableData) {
+                frame.setTableId(id);
+                frame.setClusteredIndex(true);
+            } else {
+                frame.setIndexId(id);
+                frame.setClusteredIndex(false);
+            }
 
             pageCache.put(cacheKey, frame);
 
@@ -205,7 +256,7 @@ public class BufferPool {
             PageFrame frame = pageCache.get(cacheKey);
 
             if (frame != null) {
-                writePageToDisk(tableId, frame);
+                writePageToDisk(frame);  // 自动判断是表数据还是索引数据
                 frame.clearDirty();
             }
         } finally {
@@ -228,7 +279,7 @@ public class BufferPool {
             for (PageFrame frame : pageCache.values()) {
                 // 检查页是否属于指定表且为脏页
                 if (frame.getTableId() == tableId && frame.isDirty()) {
-                    writePageToDisk(tableId, frame);
+                    writePageToDisk(frame);  // 自动使用 tableId
                     frame.clearDirty();
                 }
             }
@@ -249,9 +300,8 @@ public class BufferPool {
             int dirtyCount = 0;
             for (PageFrame frame : pageCache.values()) {
                 if (frame.isDirty()) {
-                    // 使用PageFrame存储的tableId,而不是错误推断
-                    int tableId = frame.getTableId();
-                    writePageToDisk(tableId, frame);
+                    // writePageToDisk 会自动判断是表数据还是索引数据
+                    writePageToDisk(frame);
                     frame.clearDirty();
                     dirtyCount++;
                 }
@@ -301,12 +351,20 @@ public class BufferPool {
     /**
      * 从磁盘加载页
      *
-     * @param tableId 表ID
+     * @param id 表ID或索引ID
      * @param pageId 页号
+     * @param isTableData true表示表数据，false表示索引数据
      * @return 页帧
      */
-    private PageFrame loadPageFromDisk(int tableId, int pageId) {
-        Path filePath = getTableFilePath(tableId);
+    private PageFrame loadPageFromDisk(int id, int pageId, boolean isTableData) {
+        Path filePath = isTableData ? getTableFilePath(id) : getIndexFilePath(id);
+
+        // DEBUG: 添加日志来跟踪文件读取
+        if (id < 0) {  // 系统表
+            System.err.println("DEBUG: Loading page from disk: " +
+                (isTableData ? "table" : "index") + "_" + id + ".db, pageId=" + pageId +
+                ", fileExists=" + Files.exists(filePath));
+        }
 
         try {
             if (!Files.exists(filePath)) {
@@ -314,7 +372,15 @@ public class BufferPool {
                 DataPage page = new DataPage();
                 page.setPageId(pageId);
                 PageFrame frame = new PageFrame(page);
-                frame.setTableId(tableId);  // 设置tableId
+
+                if (isTableData) {
+                    frame.setTableId(id);
+                    frame.setClusteredIndex(true);
+                } else {
+                    frame.setIndexId(id);
+                    frame.setClusteredIndex(false);
+                }
+
                 return frame;
             }
 
@@ -329,7 +395,15 @@ public class BufferPool {
                 DataPage page = new DataPage();
                 page.setPageId(pageId);
                 PageFrame frame = new PageFrame(page);
-                frame.setTableId(tableId);  // 设置tableId
+
+                if (isTableData) {
+                    frame.setTableId(id);
+                    frame.setClusteredIndex(true);
+                } else {
+                    frame.setIndexId(id);
+                    frame.setClusteredIndex(false);
+                }
+
                 return frame;
             }
 
@@ -337,29 +411,88 @@ public class BufferPool {
             byte[] pageData = new byte[Page.PAGE_SIZE];
             System.arraycopy(fileData, offset, pageData, 0, Page.PAGE_SIZE);
 
-            // 反序列化页
-            DataPage page = new DataPage();
-            page.fromBytes(pageData);
+            // 根据页面的实际类型（PageType）来反序列化
+            // 聚簇索引的数据存储在 table_{tableId}.db，但页面类型可能是 INDEX_PAGE（B+树节点）
+            Page page;
+            if (pageData.length > 0) {
+                // 读取页面类型（第一个字节）
+                byte pageTypeByte = pageData[0];
+                Page.PageType pageType = Page.PageType.fromCode(pageTypeByte);
+
+                if (pageType == Page.PageType.INDEX_PAGE) {
+                    // 聚簇索引的B+树节点
+                    page = new IndexPage();
+                    page.fromBytes(pageData);
+                } else {
+                    // 普通数据行
+                    page = new DataPage();
+                    page.fromBytes(pageData);
+                }
+            } else {
+                // 空页，默认为 DataPage
+                page = new DataPage();
+                page.setPageId(pageId);
+            }
 
             PageFrame frame = new PageFrame(page);
-            frame.setTableId(tableId);  // 设置tableId
+
+            if (isTableData) {
+                frame.setTableId(id);
+                frame.setClusteredIndex(true);
+            } else {
+                frame.setIndexId(id);
+                frame.setClusteredIndex(false);
+            }
+
             return frame;
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load page from disk: tableId=" + tableId + ", pageId=" + pageId, e);
+            String type = isTableData ? "tableId" : "indexId";
+            throw new RuntimeException("Failed to load page from disk: " + type + "=" + id + ", pageId=" + pageId, e);
         }
     }
 
     /**
-     * 将页写入磁盘
+     * 将页写入磁盘（自动判断是表数据还是索引数据）
      *
-     * @param tableId 表ID
      * @param frame 页帧
      */
-    private void writePageToDisk(int tableId, PageFrame frame) {
-        Path filePath = getTableFilePath(tableId);
+    private void writePageToDisk(PageFrame frame) {
         Page page = frame.getPage();
         int pageId = page.getPageId();
+
+        // 判断是表数据还是索引数据
+        // 聚簇索引的数据存储在表数据文件中，二级索引的数据存储在索引数据文件中
+        boolean isTableData = frame.isClusteredIndex();
+        int id = isTableData ? frame.getTableId() : frame.getIndexId();
+        Path filePath = isTableData ? getTableFilePath(id) : getIndexFilePath(id);
+
+        // 检查 pageId 是否为负数（防御性编程）
+        if (pageId < 0) {
+            // 尝试从 data 字段读取存储的 pageId（回退逻辑）
+            byte[] pageData = page.getData();
+            if (pageData.length >= 5) {  // 至少有 PageType(1) + PageId(4)
+                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(pageData);
+                buffer.position(1);  // 跳过PageType
+                int storedPageId = buffer.getInt();
+                if (storedPageId >= 0) {
+                    // 使用存储的 pageId
+                    pageId = storedPageId;
+                } else {
+                    // pageId 字段和存储的数据都是无效的，使用默认值 0
+                    logger.warn("Page has invalid pageId in both field and data. Using default pageId=0. pageType={}, {}/{}",
+                        page.getClass().getSimpleName(),
+                        isTableData ? "tableId" : "indexId", id);
+                    pageId = 0;
+                }
+            } else {
+                // data 太小，无法读取 pageId，使用默认值 0
+                logger.warn("Page data too small to read pageId. Using default pageId=0. pageType={}, {}/{}",
+                    page.getClass().getSimpleName(),
+                    isTableData ? "tableId" : "indexId", id);
+                pageId = 0;
+            }
+        }
 
         try {
             byte[] pageData = page.toBytes();
@@ -388,7 +521,8 @@ public class BufferPool {
             Files.write(filePath, fileData, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write page to disk: tableId=" + tableId + ", pageId=" + pageId, e);
+            String type = isTableData ? "tableId" : "indexId";
+            throw new RuntimeException("Failed to write page to disk: " + type + "=" + id + ", pageId=" + pageId, e);
         }
     }
 
@@ -408,9 +542,8 @@ public class BufferPool {
             if (frame.isEvictable()) {
                 // 写回脏页
                 if (frame.isDirty()) {
-                    // 使用PageFrame存储的tableId,而不是错误推断
-                    int tableId = frame.getTableId();
-                    writePageToDisk(tableId, frame);
+                    // writePageToDisk 会自动判断是表数据还是索引数据
+                    writePageToDisk(frame);
                 }
 
                 // 从缓存中移除
@@ -431,6 +564,16 @@ public class BufferPool {
      */
     private Path getTableFilePath(int tableId) {
         return dataDirPath.resolve("table_" + tableId + ".db");
+    }
+
+    /**
+     * 获取索引数据文件路径
+     *
+     * @param indexId 索引ID
+     * @return 索引数据文件路径
+     */
+    private Path getIndexFilePath(int indexId) {
+        return dataDirPath.resolve("index_" + indexId + ".db");
     }
 
     /**

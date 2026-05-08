@@ -52,7 +52,7 @@ public class IndexPage implements Page {
      */
     public IndexPage() {
         this.data = new byte[PAGE_SIZE];
-        this.pageId = -1;
+        this.pageId = 0;  // 默认为0，避免负数pageId导致写入失败
         this.node = null;
 
         // 写入页类型
