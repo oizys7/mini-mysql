@@ -1,10 +1,9 @@
 package com.minimysql.executor.operator;
 
 import com.minimysql.executor.ExpressionEvaluator;
-import com.minimysql.executor.Operator;
+import com.minimysql.executor.MutationOperator;
 import com.minimysql.parser.Expression;
 import com.minimysql.storage.table.Column;
-import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 
@@ -58,7 +57,7 @@ import java.util.List;
  * - 不实现复杂的批量插入优化(如LOAD DATA INFILE),保持简单
  * - 类型检查宽松:只要能转换就允许,不强制完全匹配
  */
-public class InsertOperator implements Operator {
+public class InsertOperator implements MutationOperator {
 
     /** 表对象 */
     private final Table table;
@@ -107,34 +106,7 @@ public class InsertOperator implements Operator {
     }
 
     /**
-     * 检查是否还有下一行
-     *
-     * INSERT算子不支持迭代模式,直接返回false。
-     * 调用方应该使用execute()方法执行插入。
-     *
-     * @return 始终返回false
-     */
-    @Override
-    public boolean hasNext() {
-        return false;
-    }
-
-    /**
-     * 获取下一行
-     *
-     * INSERT算子不支持迭代模式,直接抛出异常。
-     * 调用方应该使用execute()方法执行插入。
-     *
-     * @return 始终抛出异常
-     */
-    @Override
-    public Row next() {
-        throw new UnsupportedOperationException(
-                "InsertOperator does not support iteration. Use execute() instead."
-        );
-    }
-
-    /**
+     * 执行INSERT操作
      * 执行INSERT操作
      *
      * 对每一行数据:
@@ -207,15 +179,7 @@ public class InsertOperator implements Operator {
 
         for (int i = 0; i < columnNames.size(); i++) {
             String colName = columnNames.get(i);
-            int index = -1;
-
-            // 查找列在表定义中的索引
-            for (int j = 0; j < tableColumns.size(); j++) {
-                if (tableColumns.get(j).getName().equalsIgnoreCase(colName)) {
-                    index = j;
-                    break;
-                }
-            }
+            int index = Column.findIndex(tableColumns, colName);
 
             if (index == -1) {
                 throw new IllegalArgumentException("Column not found: " + colName);
@@ -321,7 +285,6 @@ public class InsertOperator implements Operator {
      * @return 转换后的值
      */
     private Object convertValue(Object value, Column column) {
-        // NULL值处理
         if (value == null) {
             if (!column.isNullable()) {
                 throw new IllegalArgumentException(
@@ -330,66 +293,7 @@ public class InsertOperator implements Operator {
             }
             return null;
         }
-
-        DataType targetType = column.getType();
-
-        // 如果类型已经匹配,直接返回
-        if (isTypeMatch(value, targetType)) {
-            return value;
-        }
-
-        // 类型转换
-        try {
-            switch (targetType) {
-                case INT:
-                    if (value instanceof Number) {
-                        return ((Number) value).intValue();
-                    } else if (value instanceof String) {
-                        return Integer.parseInt((String) value);
-                    }
-                    break;
-
-                case VARCHAR:
-                    return value.toString();
-
-                default:
-                    throw new IllegalArgumentException(
-                            "Unsupported type conversion: " + value.getClass() + " -> " + targetType
-                    );
-            }
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                    "Failed to convert value for column '" + column.getName() + "': " + e.getMessage(),
-                    e
-            );
-        }
-
-        throw new IllegalArgumentException(
-                "Type mismatch for column '" + column.getName() + "': " +
-                        "expected " + targetType + ", got " + value.getClass().getSimpleName()
-        );
-    }
-
-    /**
-     * 检查值类型是否匹配列定义
-     *
-     * @param value 值
-     * @param targetType 目标类型
-     * @return 如果匹配返回true
-     */
-    private boolean isTypeMatch(Object value, DataType targetType) {
-        if (value == null) {
-            return true;
-        }
-
-        switch (targetType) {
-            case INT:
-                return value instanceof Integer;
-            case VARCHAR:
-                return value instanceof String;
-            default:
-                return false;
-        }
+        return column.getType().convertValue(value, column.getName());
     }
 
     /**

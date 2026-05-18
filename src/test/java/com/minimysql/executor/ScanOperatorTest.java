@@ -12,7 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import com.minimysql.testutil.TestHelper;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,7 +40,7 @@ class ScanOperatorTest {
     @BeforeEach
     void setUp() {
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
 
         // 创建BufferPool
 
@@ -72,7 +73,7 @@ class ScanOperatorTest {
         }
 
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test
@@ -182,19 +183,4 @@ class ScanOperatorTest {
         });
     }
 
-    /**
-     * 清理测试数据
-     */
-    private void cleanupTestData() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    file.delete();
-                }
-            }
-            dir.delete();
-        }
-    }
 }

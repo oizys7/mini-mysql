@@ -244,4 +244,50 @@ class SQLParserTest {
 
         assertTrue(exception.getMessage().contains("Syntax error"));
     }
+
+    @Test
+    @DisplayName("AND/OR 优先级 - AND 高于 OR")
+    void testAndOrPrecedence() {
+        // a = 1 OR b = 2 AND c = 3 应解析为 a = 1 OR (b = 2 AND c = 3)
+        String sql = "SELECT * FROM t WHERE a = 1 OR b = 2 AND c = 3";
+        SelectStatement select = (SelectStatement) parser.parse(sql);
+        BinaryExpression orExpr = (BinaryExpression) select.getWhereClause().get();
+
+        assertEquals(OperatorEnum.OR, orExpr.getOperator());
+
+        // 右子节点应该是 AND
+        assertInstanceOf(BinaryExpression.class, orExpr.getRight());
+        BinaryExpression andExpr = (BinaryExpression) orExpr.getRight();
+        assertEquals(OperatorEnum.AND, andExpr.getOperator());
+    }
+
+    @Test
+    @DisplayName("NOT 优先级 - NOT 高于 AND")
+    void testNotPrecedence() {
+        // NOT a = 1 AND b = 2 应解析为 (NOT a = 1) AND b = 2
+        String sql = "SELECT * FROM t WHERE NOT a = 1 AND b = 2";
+        SelectStatement select = (SelectStatement) parser.parse(sql);
+        BinaryExpression andExpr = (BinaryExpression) select.getWhereClause().get();
+
+        assertEquals(OperatorEnum.AND, andExpr.getOperator());
+
+        // 左子节点应该是 NOT
+        assertInstanceOf(NotExpression.class, andExpr.getLeft());
+    }
+
+    @Test
+    @DisplayName("括号改变优先级")
+    void testParenthesizedPrecedence() {
+        // (a = 1 OR b = 2) AND c = 3 应解析为 AND(OR, =)
+        String sql = "SELECT * FROM t WHERE (a = 1 OR b = 2) AND c = 3";
+        SelectStatement select = (SelectStatement) parser.parse(sql);
+        BinaryExpression andExpr = (BinaryExpression) select.getWhereClause().get();
+
+        assertEquals(OperatorEnum.AND, andExpr.getOperator());
+
+        // 左子节点应该是 OR（被括号提升）
+        assertInstanceOf(BinaryExpression.class, andExpr.getLeft());
+        BinaryExpression orExpr = (BinaryExpression) andExpr.getLeft();
+        assertEquals(OperatorEnum.OR, orExpr.getOperator());
+    }
 }

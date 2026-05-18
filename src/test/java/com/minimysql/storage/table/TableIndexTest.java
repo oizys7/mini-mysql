@@ -313,4 +313,53 @@ class TableIndexTest {
 
         assertEquals("Alice", users.getRowValue(results.get(0), "name"));
     }
+
+    /**
+     * 测试二级索引查询 — 回表查找完整行
+     */
+    @Test
+    @DisplayName("二级索引查询 - 回表查找")
+    void testSelectBySecondaryIndex() {
+        List<Column> columns = Arrays.asList(
+                new Column("id", DataType.INT, false),
+                new Column("name", DataType.VARCHAR, 100, true),
+                new Column("age", DataType.INT, false)
+        );
+
+        Table users = engine.createTable("users", columns);
+
+        // 插入数据
+        users.insertRow(new Row(new Object[]{1, "Alice", 25}));
+        users.insertRow(new Row(new Object[]{2, "Bob", 30}));
+        users.insertRow(new Row(new Object[]{3, "Charlie", 35}));
+
+        // 创建二级索引
+        engine.createIndex("users", "idx_name", "name", false);
+
+        // 通过 name 查询（回表）
+        Row found = users.selectBySecondaryIndex("idx_name", "Bob");
+        assertNotNull(found);
+        assertEquals(2, found.getValue(0));   // id
+        assertEquals("Bob", found.getValue(1)); // name
+        assertEquals(30, found.getValue(2));   // age
+
+        // 查不存在的值
+        Row notFound = users.selectBySecondaryIndex("idx_name", "David");
+        assertNull(notFound);
+    }
+
+    @Test
+    @DisplayName("二级索引查询 - 索引不存在时抛异常")
+    void testSelectBySecondaryIndexNotFound() {
+        List<Column> columns = Arrays.asList(
+                new Column("id", DataType.INT, false),
+                new Column("name", DataType.VARCHAR, 100, true)
+        );
+
+        Table users = engine.createTable("users", columns);
+        users.insertRow(new Row(new Object[]{1, "Alice"}));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                users.selectBySecondaryIndex("nonexistent_index", "Alice"));
+    }
 }

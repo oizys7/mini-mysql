@@ -378,12 +378,12 @@ if (left instanceof String && right instanceof String) { ... }
 |--------|------|------|------|------------|
 | 🔴 高 | AND/OR 优先级修复 | parser | ✅ 已完成 | 30min |
 | 🔴 高 | ScanOperator 惰性化 | executor | ✅ 已完成 | 2h |
-| 🔴 高 | 提取列名查找公共方法 | executor | ⏸️ 暂停（测试阻塞）| 1h |
-| 🟡 中 | 拆分 evalBinary | executor | 待处理 | 1h |
-| 🟡 中 | 删除 SQLParser.main() | parser | 待处理 | 5min |
-| 🟡 中 | 字符串转义处理 | parser | 待处理 | 30min |
-| 🟢 低 | Operator 接口语义分裂 | executor | 待处理 | 3h |
-| 🟢 低 | 类型系统统一 | executor | 待处理 | 2h |
+| 🔴 高 | 提取列名查找公共方法 | executor | ✅ 已完成 | 1h |
+| 🟡 中 | 拆分 evalBinary | executor | ✅ 已完成 | 1h |
+| 🟡 中 | 删除 SQLParser.main() | parser | ✅ 已完成 | 5min |
+| 🟡 中 | 字符串转义处理 | parser | ✅ 已完成（之前已修复）| 30min |
+| 🟢 低 | Operator 接口语义分裂 | executor | ✅ 已完成 | 3h |
+| 🟢 低 | 类型系统统一 | executor | ✅ 已完成 | 2h |
 
 ### 一句话总结
 

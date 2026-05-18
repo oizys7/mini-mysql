@@ -113,11 +113,11 @@ class VolcanoExecutorTest {
 
         // 验证行数据
         List<Row> rows = result.getRows();
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Alice")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Bob")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Charlie")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("David")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Eve")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Alice")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Bob")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Charlie")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("David")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Eve")));
     }
 
     @Test
@@ -159,15 +159,15 @@ class VolcanoExecutorTest {
         // 验证所有行的age都 > 18
         List<Row> rows = result.getRows();
         for (Row row : rows) {
-            assertTrue((Integer) row.getValue(0) > 18);
+            assertTrue((Integer) row.getValue(2) > 18);
         }
 
         // 验证具体数据
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Alice")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Charlie")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Eve")));
-        assertFalse(rows.stream().anyMatch(r -> r.getValue("name").equals("Bob")));
-        assertFalse(rows.stream().anyMatch(r -> r.getValue("name").equals("David")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Alice")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Charlie")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Eve")));
+        assertFalse(rows.stream().anyMatch(r -> r.getValue(1).equals("Bob")));
+        assertFalse(rows.stream().anyMatch(r -> r.getValue(1).equals("David")));
     }
 
     @Test
@@ -219,9 +219,9 @@ class VolcanoExecutorTest {
 
         // 验证数据
         List<Row> rows = result.getRows();
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Bob")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("David")));
-        assertTrue(rows.stream().anyMatch(r -> r.getValue("name").equals("Eve")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Bob")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("David")));
+        assertTrue(rows.stream().anyMatch(r -> r.getValue(1).equals("Eve")));
     }
 
     @Test

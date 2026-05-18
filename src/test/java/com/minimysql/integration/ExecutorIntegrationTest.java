@@ -4,18 +4,18 @@ import com.minimysql.result.QueryResult;
 import com.minimysql.executor.VolcanoExecutor;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.parser.Statement;
-import com.minimysql.storage.buffer.BufferPool;
-import com.minimysql.storage.impl.InnoDBStorageEngine;
+import com.minimysql.storage.StorageEngine;
+import com.minimysql.storage.StorageEngineFactory;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,44 +45,34 @@ class ExecutorIntegrationTest {
 
     private static final String TEST_DATA_DIR = "test_data_executor_integration";
 
-    private BufferPool bufferPool;
-    private InnoDBStorageEngine storageEngine;
+    private StorageEngine storageEngine;
     private VolcanoExecutor executor;
     private SQLParser parser;
 
     @BeforeEach
     void setUp() {
-        // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
 
-        // 创建BufferPool
-        bufferPool = new BufferPool(10);
+        storageEngine = StorageEngineFactory.createEngine(
+                StorageEngineFactory.EngineType.INNODB,
+                10,
+                false,
+                TEST_DATA_DIR
+        );
 
-        // 创建StorageEngine
-        storageEngine = new InnoDBStorageEngine(10, false);
-
-        // 创建Executor
         executor = new VolcanoExecutor(storageEngine);
-
-        // 创建Parser
         parser = new SQLParser();
 
-        // 创建测试表: users(id INT, name VARCHAR(100), age INT, salary DOUBLE)
         createUsersTable();
-
-        // 创建测试表: products(id INT, name VARCHAR(100), price DOUBLE, stock INT)
         createProductsTable();
     }
 
     @AfterEach
     void tearDown() {
-        // 关闭StorageEngine
         if (storageEngine != null) {
             storageEngine.close();
         }
-
-        // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test
@@ -139,7 +129,7 @@ class ExecutorIntegrationTest {
 
         // 验证所有行的age都 > 25
         for (Row row : result.getRows()) {
-            assertTrue((Integer) row.getValue(0) > 25);
+            assertTrue((Integer) row.getValue(2) > 25);
         }
 
         // 打印结果
@@ -159,8 +149,8 @@ class ExecutorIntegrationTest {
         assertEquals(2, result.getRowCount()); // Alice(25), Charlie(30)
 
         // 验证数据
-        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue("name").equals("Alice")));
-        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue("name").equals("Charlie")));
+        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue(1).equals("Alice")));
+        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue(1).equals("Charlie")));
 
         // 打印结果
         System.out.println("\n" + sql);
@@ -177,8 +167,8 @@ class ExecutorIntegrationTest {
         // 验证结果
         assertEquals(1, result.getRowCount());
         Row row = result.getRows().get(0);
-        assertEquals("Charlie", row.getValue("name"));
-        assertEquals(30, row.getValue(0));
+        assertEquals("Charlie", row.getValue(1));
+        assertEquals(30, row.getValue(2));
 
         // 打印结果
         System.out.println("\n" + sql);
@@ -196,9 +186,9 @@ class ExecutorIntegrationTest {
         assertEquals(3, result.getRowCount()); // Bob(17), David(15), Eve(35)
 
         // 验证数据
-        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue("name").equals("Bob")));
-        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue("name").equals("David")));
-        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue("name").equals("Eve")));
+        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue(1).equals("Bob")));
+        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue(1).equals("David")));
+        assertTrue(result.getRows().stream().anyMatch(r -> r.getValue(1).equals("Eve")));
 
         // 打印结果
         System.out.println("\n" + sql);
@@ -255,7 +245,7 @@ class ExecutorIntegrationTest {
         // 验证结果(1000 * 60 = 60000 > 50000)
         assertEquals(1, result.getRowCount());
         Row row = result.getRows().get(0);
-        assertEquals("Monitor", row.getValue("name"));
+        assertEquals("Monitor", row.getValue(1));
 
         // 打印结果
         System.out.println("\n" + sql);
@@ -327,21 +317,5 @@ class ExecutorIntegrationTest {
         table.insertRow(new Row(new Object[]{2, "Mouse", 50.0, 30}));
         table.insertRow(new Row(new Object[]{3, "Keyboard", 100.0, 80}));
         table.insertRow(new Row(new Object[]{4, "Monitor", 1000.0, 60}));
-    }
-
-    /**
-     * 清理测试数据
-     */
-    private void cleanupTestData() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    file.delete();
-                }
-            }
-            dir.delete();
-        }
     }
 }

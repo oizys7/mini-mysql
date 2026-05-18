@@ -1,6 +1,5 @@
 package com.minimysql.executor;
 
-import com.minimysql.CommonConstant;
 import com.minimysql.executor.operator.*;
 import com.minimysql.parser.SQLParser;
 import com.minimysql.parser.Statement;
@@ -10,6 +9,7 @@ import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
+import com.minimysql.testutil.TestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,14 +35,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("查询计划生成器测试")
 class ExecutionPlanTest {
 
-    private static final String TEST_DATA_DIR = CommonConstant.DATA_PREFIX + "test_data_execution_plan";
+    private static final String TEST_DATA_DIR = "test_data_execution_plan";
 
     private StorageEngine storageEngine;
     private SQLParser parser;
 
     @BeforeEach
     void setUp() {
-        // 创建StorageEngine (不使用元数据持久化)
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
+
         storageEngine = StorageEngineFactory.createEngine(
                 StorageEngineFactory.EngineType.INNODB,
                 10,
@@ -50,16 +51,15 @@ class ExecutionPlanTest {
                 TEST_DATA_DIR
         );
 
-        // 创建SQL解析器
         parser = new SQLParser();
     }
 
     @AfterEach
     void tearDown() {
-        // 关闭StorageEngine
         if (storageEngine != null) {
             storageEngine.close();
         }
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test
@@ -172,8 +172,8 @@ class ExecutionPlanTest {
         Table table = storageEngine.getTable("users");
         Row row = table.selectByPrimaryKey(4);
         assertNotNull(row);
-        assertEquals("David", row.getValue("name"));
-        assertEquals(40, row.getValue(0));
+        assertEquals("David", row.getValue(1));
+        assertEquals(40, row.getValue(2));
     }
 
     @Test
@@ -202,7 +202,7 @@ class ExecutionPlanTest {
         // 验证: 数据确实更新了
         Table table = storageEngine.getTable("users");
         Row row = table.selectByPrimaryKey(1);
-        assertEquals(26, row.getValue(0));
+        assertEquals(26, row.getValue(2));
     }
 
     @Test

@@ -30,15 +30,7 @@ public class SchemaManagerTest {
 
     private StorageEngine storageEngine;
     private SchemaManager schemaManager;
-    private static final String TEST_METADATA_DIR = getTestMetadataDir();
-
-    /**
-     * 获取测试元数据目录的相对路径
-     * Note: InnoDBStorageEngine会自动加上CommonConstant.DATA_PREFIX前缀
-     */
-    private static String getTestMetadataDir() {
-        return "test_metadata";
-    }
+    private static final String TEST_METADATA_DIR = "test_metadata";
 
     @BeforeEach
     public void setUp() throws Exception {

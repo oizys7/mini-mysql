@@ -15,7 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import com.minimysql.testutil.TestHelper;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,7 +43,7 @@ class ProjectOperatorTest {
     @BeforeEach
     void setUp() {
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
 
         // 创建BufferPool
 
@@ -84,7 +85,7 @@ class ProjectOperatorTest {
         }
 
         // 清理测试数据
-        cleanupTestData();
+        TestHelper.cleanupTestDir(TEST_DATA_DIR);
     }
 
     @Test
@@ -280,21 +281,5 @@ class ProjectOperatorTest {
         // 注意:这个测试假设ScanOperator返回的是唯一的Row对象
         assertNotNull(row1);
         assertEquals(4, row1.getColumnCount());
-    }
-
-    /**
-     * 清理测试数据
-     */
-    private void cleanupTestData() {
-        File dir = new File(TEST_DATA_DIR);
-        if (dir.exists()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    file.delete();
-                }
-            }
-            dir.delete();
-        }
     }
 }

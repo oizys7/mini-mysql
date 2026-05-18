@@ -151,12 +151,8 @@ public class ProjectOperator implements Operator {
      * @return 列定义,如果不存在返回null
      */
     private Column findColumn(String columnName) {
-        for (Column col : originalColumns) {
-            if (col.getName().equalsIgnoreCase(columnName)) {
-                return col;
-            }
-        }
-        return null;
+        int index = Column.findIndex(originalColumns, columnName);
+        return index >= 0 ? originalColumns.get(index) : null;
     }
 
     /**
@@ -208,15 +204,7 @@ public class ProjectOperator implements Operator {
                 ColumnExpression colExpr = (ColumnExpression) item;
                 String columnName = colExpr.getColumnName();
 
-                // 从 originalColumns 中查找列索引
-                int columnIndex = -1;
-                for (int i = 0; i < originalColumns.size(); i++) {
-                    if (originalColumns.get(i).getName().equalsIgnoreCase(columnName)) {
-                        columnIndex = i;
-                        break;
-                    }
-                }
-
+                int columnIndex = Column.findIndex(originalColumns, columnName);
                 if (columnIndex < 0) {
                     throw new IllegalArgumentException("Column not found: " + columnName);
                 }

@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("元数据持久化和加载测试")
 class MetadataPersistenceTest {
 
-    private static final String TEST_DATA_DIR = "/test_data_metadata_persistence";
+    private static final String TEST_DATA_DIR = "test_data_metadata_persistence";
 
     private StorageEngine storageEngine;
     private SQLParser parser;
@@ -152,11 +152,11 @@ class MetadataPersistenceTest {
 
             // 验证数据
             Row userRow = users2.selectByPrimaryKey(1);
-            assertEquals("Alice", userRow.getValue("name"));
+            assertEquals("Alice", userRow.getValue(1));
 
             Row productRow = products2.selectByPrimaryKey(1);
-            assertEquals("Laptop", productRow.getValue("product_name"));
-            assertEquals(1000, productRow.getValue("price"));
+            assertEquals("Laptop", productRow.getValue(1));
+            assertEquals(1000, productRow.getValue(2));
 
         } finally {
             newStorageEngine.close();
@@ -218,8 +218,8 @@ class MetadataPersistenceTest {
             assertNotNull(row1);
             assertNotNull(row2);
 
-            assertEquals("Alice", row1.getValue("name"));
-            assertEquals("Bob", row2.getValue("name"));
+            assertEquals("Alice", row1.getValue(1));
+            assertEquals("Bob", row2.getValue(1));
 
         } finally {
             newStorageEngine.close();

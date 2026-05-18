@@ -107,15 +107,15 @@ class FilterOperatorTest {
         // 应该返回3行: Alice(25), Charlie(30), Eve(35)
         assertTrue(filter.hasNext());
         Row row1 = filter.next();
-        assertEquals(25, row1.getValue(0));
+        assertEquals(25, row1.getValue(2));
 
         assertTrue(filter.hasNext());
         Row row2 = filter.next();
-        assertEquals(30, row2.getValue(0));
+        assertEquals(30, row2.getValue(2));
 
         assertTrue(filter.hasNext());
         Row row3 = filter.next();
-        assertEquals(35, row3.getValue(0));
+        assertEquals(35, row3.getValue(2));
 
         assertFalse(filter.hasNext());
     }
@@ -143,8 +143,8 @@ class FilterOperatorTest {
         // 应该只返回1行: Alice(25)
         assertTrue(filter.hasNext());
         Row row = filter.next();
-        assertEquals(25, row.getValue(0));
-        assertEquals("Alice", row.getValue("name"));
+        assertEquals(25, row.getValue(2));
+        assertEquals("Alice", row.getValue(1));
 
         assertFalse(filter.hasNext());
     }
@@ -200,8 +200,8 @@ class FilterOperatorTest {
 
         assertTrue(filter.hasNext());
         Row row = filter.next();
-        assertEquals(25, row.getValue(0));
-        assertEquals("Alice", row.getValue("name"));
+        assertEquals(25, row.getValue(2));
+        assertEquals("Alice", row.getValue(1));
 
         assertFalse(filter.hasNext());
     }
@@ -231,7 +231,7 @@ class FilterOperatorTest {
         while (filter.hasNext()) {
             Row row = filter.next();
             count++;
-            assertTrue((Integer) row.getValue(0) < 18 || (Integer) row.getValue(0) > 30);
+            assertTrue((Integer) row.getValue(2) < 18 || (Integer) row.getValue(2) > 30);
         }
 
         assertEquals(3, count);

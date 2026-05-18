@@ -142,6 +142,62 @@ public enum DataType {
     }
 
     /**
+     * 检查值类型是否与本 DataType 匹配（无需转换）
+     */
+    public boolean isTypeMatch(Object value) {
+        if (value == null) {
+            return true;
+        }
+        return javaType.isInstance(value);
+    }
+
+    /**
+     * 将 Java 值转换为本类型
+     *
+     * @param value  原始值（不能为 null，NULL 检查由调用方负责）
+     * @param columnName  列名（仅用于错误消息，可为 null）
+     * @return 转换后的值
+     * @throws IllegalArgumentException 如果类型不匹配且无法转换
+     */
+    public Object convertValue(Object value, String columnName) {
+        if (isTypeMatch(value)) {
+            return value;
+        }
+
+        try {
+            switch (this) {
+                case INT:
+                    if (value instanceof Number) return ((Number) value).intValue();
+                    if (value instanceof String) return Integer.parseInt((String) value);
+                    break;
+                case BIGINT:
+                    if (value instanceof Number) return ((Number) value).longValue();
+                    if (value instanceof String) return Long.parseLong((String) value);
+                    break;
+                case DOUBLE:
+                    if (value instanceof Number) return ((Number) value).doubleValue();
+                    if (value instanceof String) return Double.parseDouble((String) value);
+                    break;
+                case VARCHAR:
+                    return value.toString();
+                case BOOLEAN:
+                    if (value instanceof Number) return ((Number) value).intValue() != 0;
+                    if (value instanceof String) return Boolean.parseBoolean((String) value);
+                    break;
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    "Failed to convert value for column '" + columnName + "': " + e.getMessage(), e);
+        }
+
+        throw new IllegalArgumentException(
+                "Type mismatch for column '" + columnName + "': expected " + this
+                        + ", got " + value.getClass().getSimpleName());
+    }
+
+    /**
      * 根据名称解析数据类型
      *
      * @param typeName 类型名称(如"INT", "VARCHAR")

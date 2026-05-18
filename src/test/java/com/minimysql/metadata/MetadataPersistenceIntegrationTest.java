@@ -30,16 +30,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class MetadataPersistenceIntegrationTest {
 
-    private static final String TEST_DATA_DIR = getTestDataDir();
+    private static final String TEST_DATA_DIR = "test_integration";
     private StorageEngine storageEngine;
-
-    /**
-     * 获取测试数据目录的相对路径
-     * Note: InnoDBStorageEngine会自动加上CommonConstant.DATA_PREFIX前缀
-     */
-    private static String getTestDataDir() {
-        return "test_integration";
-    }
 
     @BeforeEach
     public void setUp() {

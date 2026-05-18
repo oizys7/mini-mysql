@@ -108,34 +108,4 @@ public class SQLParser {
             return String.join("\n", errors);
         }
     }
-
-    /**
-     * 测试入口
-     */
-    public static void main(String[] args) {
-        SQLParser parser = new SQLParser();
-
-        // 测试各种SQL语句
-        String[] testCases = {
-            "CREATE TABLE users (id INT NOT NULL, name VARCHAR(100), PRIMARY KEY (id));",
-            "SELECT * FROM users;",
-            "SELECT id, name FROM users WHERE age > 18;",
-            "INSERT INTO users VALUES (1, 'Alice', 25);",
-            "UPDATE users SET age = 26 WHERE id = 1;",
-            "DELETE FROM users WHERE id = 1;",
-            "DROP TABLE users;"
-        };
-
-        for (String sql : testCases) {
-            System.out.println("Parsing: " + sql);
-            try {
-                Statement stmt = parser.parse(sql);
-                System.out.println("✓ Success: " + stmt.getType());
-                System.out.println("  " + stmt);
-            } catch (ParseException e) {
-                System.out.println("✗ Error: " + e.getMessage());
-            }
-            System.out.println();
-        }
-    }
 }

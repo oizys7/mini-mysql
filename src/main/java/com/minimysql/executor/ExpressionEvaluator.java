@@ -138,26 +138,13 @@ public class ExpressionEvaluator {
      */
     private Object evalColumn(ColumnExpression expr, Row row, List<Column> columns) {
         String columnName = expr.getColumnName();
+        int columnIndex = Column.findIndex(columns, columnName);
 
-        try {
-            // 从 columns 中查找列索引
-            int columnIndex = -1;
-            for (int i = 0; i < columns.size(); i++) {
-                if (columns.get(i).getName().equalsIgnoreCase(columnName)) {
-                    columnIndex = i;
-                    break;
-                }
-            }
-
-            if (columnIndex < 0) {
-                throw new EvaluationException("Column not found: " + columnName);
-            }
-
-            // 从Row中获取列值
-            return row.getValue(columnIndex);
-        } catch (IllegalArgumentException e) {
-            throw new EvaluationException("Column not found: " + columnName, e);
+        if (columnIndex < 0) {
+            throw new EvaluationException("Column not found: " + columnName);
         }
+
+        return row.getValue(columnIndex);
     }
 
     /**
@@ -183,41 +170,56 @@ public class ExpressionEvaluator {
      * @return 运算结果
      */
     private Object evalBinary(BinaryExpression expr, Row row, List<Column> columns) {
-        // 递归求值左右操作数
         Object left = eval(expr.getLeft(), row, columns);
         Object right = eval(expr.getRight(), row, columns);
         OperatorEnum op = expr.getOperator();
 
-        // 根据运算符类型求值
-        if (op == OperatorEnum.EQUAL) {
-            return compare(left, right) == 0;
-        } else if (op == OperatorEnum.NOT_EQUAL) {
-            return compare(left, right) != 0;
-        } else if (op == OperatorEnum.GREATER_THAN) {
-            return compare(left, right) > 0;
-        } else if (op == OperatorEnum.LESS_THAN) {
-            return compare(left, right) < 0;
-        } else if (op == OperatorEnum.GREATER_EQUAL) {
-            return compare(left, right) >= 0;
-        } else if (op == OperatorEnum.LESS_EQUAL) {
-            return compare(left, right) <= 0;
-        } else if (op == OperatorEnum.AND) {
-            return toBoolean(left) && toBoolean(right);
-        } else if (op == OperatorEnum.OR) {
-            return toBoolean(left) || toBoolean(right);
-        } else if (op == OperatorEnum.ADD) {
-            return arithmetic(left, right, ArithmeticOp.ADD);
-        } else if (op == OperatorEnum.SUBTRACT) {
-            return arithmetic(left, right, ArithmeticOp.SUBTRACT);
-        } else if (op == OperatorEnum.MULTIPLY) {
-            return arithmetic(left, right, ArithmeticOp.MULTIPLY);
-        } else if (op == OperatorEnum.DIVIDE) {
-            return arithmetic(left, right, ArithmeticOp.DIVIDE);
-        } else if (op == OperatorEnum.MODULO) {
-            return arithmetic(left, right, ArithmeticOp.MODULO);
-        } else {
-            throw new EvaluationException("Unsupported operator: " + op);
+        if (op == OperatorEnum.AND || op == OperatorEnum.OR) {
+            return evalLogical(op, left, right);
         }
+
+        switch (op) {
+            case EQUAL: case NOT_EQUAL: case GREATER_THAN: case LESS_THAN:
+            case GREATER_EQUAL: case LESS_EQUAL:
+                return evalComparison(op, left, right);
+            case ADD: case SUBTRACT: case MULTIPLY: case DIVIDE: case MODULO:
+                return evalArithmetic(op, left, right);
+            default:
+                throw new EvaluationException("Unsupported operator: " + op);
+        }
+    }
+
+    private Object evalLogical(OperatorEnum op, Object left, Object right) {
+        if (op == OperatorEnum.AND) {
+            return toBoolean(left) && toBoolean(right);
+        }
+        return toBoolean(left) || toBoolean(right);
+    }
+
+    private Object evalComparison(OperatorEnum op, Object left, Object right) {
+        int cmp = compare(left, right);
+        switch (op) {
+            case EQUAL:        return cmp == 0;
+            case NOT_EQUAL:    return cmp != 0;
+            case GREATER_THAN: return cmp > 0;
+            case LESS_THAN:    return cmp < 0;
+            case GREATER_EQUAL:return cmp >= 0;
+            case LESS_EQUAL:   return cmp <= 0;
+            default: throw new EvaluationException("Not a comparison operator: " + op);
+        }
+    }
+
+    private Object evalArithmetic(OperatorEnum op, Object left, Object right) {
+        ArithmeticOp arithOp;
+        switch (op) {
+            case ADD:      arithOp = ArithmeticOp.ADD; break;
+            case SUBTRACT: arithOp = ArithmeticOp.SUBTRACT; break;
+            case MULTIPLY: arithOp = ArithmeticOp.MULTIPLY; break;
+            case DIVIDE:   arithOp = ArithmeticOp.DIVIDE; break;
+            case MODULO:   arithOp = ArithmeticOp.MODULO; break;
+            default: throw new EvaluationException("Not an arithmetic operator: " + op);
+        }
+        return arithmetic(left, right, arithOp);
     }
 
     /**
@@ -245,26 +247,26 @@ public class ExpressionEvaluator {
      */
     @SuppressWarnings("unchecked")
     private int compare(Object left, Object right) {
-        // 处理null值(MySQL语义: NULL与任何值比较结果为NULL,这里简化为-1)
         if (left == null || right == null) {
             return -1;
         }
 
-        // 类型必须相同,否则抛异常(不自动转换)
-        if (left.getClass() != right.getClass()) {
-            throw new EvaluationException(
-                    "Type mismatch in comparison: " +
-                            left.getClass().getSimpleName() + " vs " +
-                            right.getClass().getSimpleName());
+        // 数值类型统一用 Double 比较
+        if (left instanceof Number && right instanceof Number) {
+            return Double.compare(
+                    ((Number) left).doubleValue(),
+                    ((Number) right).doubleValue()
+            );
         }
 
-        // 支持Comparable类型
-        if (left instanceof Comparable) {
+        // 相同类型直接比较
+        if (left.getClass() == right.getClass() && left instanceof Comparable) {
             return ((Comparable<Object>) left).compareTo(right);
         }
 
         throw new EvaluationException(
-                "Cannot compare non-Comparable types: " + left.getClass().getSimpleName());
+                "Cannot compare: " + left.getClass().getSimpleName() +
+                        " vs " + right.getClass().getSimpleName());
     }
 
     /**
@@ -304,16 +306,22 @@ public class ExpressionEvaluator {
      * @return 运算结果
      */
     private Object arithmetic(Object left, Object right, ArithmeticOp op) {
-        // 类型必须相同
         if (left == null || right == null) {
             throw new EvaluationException("Arithmetic operation on null value");
         }
 
-        if (left.getClass() != right.getClass()) {
-            throw new EvaluationException(
-                    "Type mismatch in arithmetic: " +
-                            left.getClass().getSimpleName() + " vs " +
-                            right.getClass().getSimpleName());
+        // 混合数值类型：统一提升为 Double
+        if (left instanceof Double || right instanceof Double) {
+            double l = ((Number) left).doubleValue();
+            double r = ((Number) right).doubleValue();
+
+            return switch (op) {
+                case ADD -> l + r;
+                case SUBTRACT -> l - r;
+                case MULTIPLY -> l * r;
+                case DIVIDE -> l / r;
+                case MODULO -> l % r;
+            };
         }
 
         // 支持Integer和Long运算(Double可选)

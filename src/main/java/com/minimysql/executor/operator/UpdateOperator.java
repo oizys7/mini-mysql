@@ -1,10 +1,9 @@
 package com.minimysql.executor.operator;
 
 import com.minimysql.executor.ExpressionEvaluator;
-import com.minimysql.executor.Operator;
+import com.minimysql.executor.MutationOperator;
 import com.minimysql.parser.Expression;
 import com.minimysql.storage.table.Column;
-import com.minimysql.storage.table.DataType;
 import com.minimysql.storage.table.Row;
 import com.minimysql.storage.table.Table;
 
@@ -66,7 +65,7 @@ import java.util.Optional;
  * - 主键列不允许更新
  * - 不支持事务,更新失败不会回滚
  */
-public class UpdateOperator implements Operator {
+public class UpdateOperator implements MutationOperator {
 
     /** 表对象 */
     private final Table table;
@@ -246,15 +245,7 @@ public class UpdateOperator implements Operator {
 
         for (Map.Entry<String, Expression> entry : assignments.entrySet()) {
             String columnName = entry.getKey();
-            int index = -1;
-
-            // 查找列在表定义中的索引
-            for (int i = 0; i < tableColumns.size(); i++) {
-                if (tableColumns.get(i).getName().equalsIgnoreCase(columnName)) {
-                    index = i;
-                    break;
-                }
-            }
+            int index = Column.findIndex(tableColumns, columnName);
 
             if (index == -1) {
                 throw new IllegalArgumentException("Column not found: " + columnName);
@@ -314,7 +305,6 @@ public class UpdateOperator implements Operator {
      * @return 转换后的值
      */
     private Object convertValue(Object value, Column column) {
-        // NULL值处理
         if (value == null) {
             if (!column.isNullable()) {
                 throw new IllegalArgumentException(
@@ -323,66 +313,7 @@ public class UpdateOperator implements Operator {
             }
             return null;
         }
-
-        DataType targetType = column.getType();
-
-        // 如果类型已经匹配,直接返回
-        if (isTypeMatch(value, targetType)) {
-            return value;
-        }
-
-        // 类型转换
-        try {
-            switch (targetType) {
-                case INT:
-                    if (value instanceof Number) {
-                        return ((Number) value).intValue();
-                    } else if (value instanceof String) {
-                        return Integer.parseInt((String) value);
-                    }
-                    break;
-
-                case VARCHAR:
-                    return value.toString();
-
-                default:
-                    throw new IllegalArgumentException(
-                            "Unsupported type conversion: " + value.getClass() + " -> " + targetType
-                    );
-            }
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                    "Failed to convert value for column '" + column.getName() + "': " + e.getMessage(),
-                    e
-            );
-        }
-
-        throw new IllegalArgumentException(
-                "Type mismatch for column '" + column.getName() + "': " +
-                        "expected " + targetType + ", got " + value.getClass().getSimpleName()
-        );
-    }
-
-    /**
-     * 检查值类型是否匹配列定义
-     *
-     * @param value 值
-     * @param targetType 目标类型
-     * @return 如果匹配返回true
-     */
-    private boolean isTypeMatch(Object value, DataType targetType) {
-        if (value == null) {
-            return true;
-        }
-
-        switch (targetType) {
-            case INT:
-                return value instanceof Integer;
-            case VARCHAR:
-                return value instanceof String;
-            default:
-                return false;
-        }
+        return column.getType().convertValue(value, column.getName());
     }
 
     /**

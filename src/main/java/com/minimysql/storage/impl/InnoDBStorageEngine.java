@@ -136,7 +136,7 @@ public class InnoDBStorageEngine implements StorageEngine {
         this.tableIdGenerator = new AtomicInteger(0);
         this.closed = false;
         this.enableMetadataPersistence = enableMetadataPersistence;
-        this.dataDir = CommonConstant.DATA_PREFIX + dataDir;
+        this.dataDir = dataDir;
 
         // 初始化SchemaManager
         if (enableMetadataPersistence) {

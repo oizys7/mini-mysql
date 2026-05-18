@@ -1,7 +1,7 @@
 package com.minimysql.executor.operator;
 
 import com.minimysql.executor.ExpressionEvaluator;
-import com.minimysql.executor.Operator;
+import com.minimysql.executor.MutationOperator;
 import com.minimysql.parser.Expression;
 import com.minimysql.storage.table.Column;
 import com.minimysql.storage.table.Row;
@@ -65,7 +65,7 @@ import java.util.List;
  * - B+树删除功能不完整,二级索引删除可能失败
  * - 删除后不会回收空间(页不会合并)
  */
-public class DeleteOperator implements Operator {
+public class DeleteOperator implements MutationOperator {
 
     /** 表对象 */
     private final Table table;
@@ -109,34 +109,7 @@ public class DeleteOperator implements Operator {
     }
 
     /**
-     * 检查是否还有下一行
-     *
-     * DELETE算子不支持迭代模式,直接返回false。
-     * 调用方应该使用execute()方法执行删除。
-     *
-     * @return 始终返回false
-     */
-    @Override
-    public boolean hasNext() {
-        return false;
-    }
-
-    /**
-     * 获取下一行
-     *
-     * DELETE算子不支持迭代模式,直接抛出异常。
-     * 调用方应该使用execute()方法执行删除。
-     *
-     * @return 始终抛出异常
-     */
-    @Override
-    public Row next() {
-        throw new UnsupportedOperationException(
-                "DeleteOperator does not support iteration. Use execute() instead."
-        );
-    }
-
-    /**
+     * 执行DELETE操作
      * 执行DELETE操作
      *
      * 算法流程:

@@ -14,7 +14,7 @@ import java.util.Iterator;
  *
  * 设计原则:
  * - "Good taste": 简单直接,没有特殊情况
- * - 懒加载: 调用fullTableScan()后立即获得Iterator,逐行返回
+ * - 懒加载: 通过fullTableScanLazy()获得惰性迭代器,按需逐行返回
  * - 无状态: 不持有任何中间状态,每次调用hasNext()/next()都委托给Iterator
  *
  * MySQL对应:
@@ -31,7 +31,7 @@ import java.util.Iterator;
  * </pre>
  *
  * 数据流:
- * Table.fullTableScan() → List<Row> → Iterator → ScanOperator.hasNext()/next()
+ * BPlusTree.getAllLazy() → ClusteredIndex.getAllRowsLazy() → Table.fullTableScanLazy() → ScanOperator.hasNext()/next()
  *
  * 性能特点:
  * - O(N)时间复杂度,需要读取所有行
